@@ -1,0 +1,21 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# Project specific
+.secret_key
+test_pkg/
+test_pkg_proj/
