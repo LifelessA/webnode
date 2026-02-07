@@ -306,6 +306,27 @@ class URLNode(BaseNode):
         return None
 """
 
+ROUTE_NODE_PY = """
+from nodes.base_node import BaseNode
+
+class RouterNode(BaseNode):
+    \"\"\"
+    Router Node that manages multiple route branches.
+    It iterates through a list of route chains and executes the first one that matches.
+    \"\"\"
+    def __init__(self, routes):
+        super().__init__()
+        self.routes = routes
+
+    def process(self, request):
+        for route in self.routes:
+            # route is expected to be a URLNode (start of a chain)
+            result = route.process(request)
+            if result is not None:
+                return result
+        return None
+"""
+
 STATIC_LOGIC_PY = """
 def check_odd_even(number):
     if number % 2 == 0:
@@ -525,6 +546,7 @@ from nodes.url_node import URLNode
 from nodes.logic_node import LogicNode
 from nodes.context_node import ContextNode
 from nodes.template_node import RenderNode
+from nodes.route_node import RouterNode
 from static.logic import check_odd_even, weather_logic, time_logic
 
 # --- Application Logic Functions ---
@@ -563,18 +585,9 @@ def text_logic(request):
 server_node = ServerNode(port=settings.PORT)
 
 # 2. HTTP Request Processor Node
+# 2. HTTP Request Processor Node
+# ...
 http_request_node = HTTPRequestsNode()
-
-class RouterNode(BaseNode):
-    def __init__(self, routes):
-        super().__init__()
-        self.routes = routes
-    def process(self, request):
-        for route in self.routes:
-            result = route.process(request)
-            if result is not None:
-                return result
-        return None
 
 # 3. Define Branches
 url_index = URLNode('/')
@@ -635,6 +648,7 @@ def create_project():
     write_file(os.path.join("nodes", "logic_node.py"), LOGIC_NODE_PY)
     write_file(os.path.join("nodes", "template_node.py"), TEMPLATE_NODE_PY)
     write_file(os.path.join("nodes", "url_node.py"), URL_NODE_PY)
+    write_file(os.path.join("nodes", "route_node.py"), ROUTE_NODE_PY)
 
     # Write Static Files
     write_file(os.path.join("static", "logic.py"), STATIC_LOGIC_PY)

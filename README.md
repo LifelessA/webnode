@@ -17,10 +17,10 @@ pip install git+https://github.com/LifelessA/webnode.git
 Use the CLI command to generate a new project structure:
 
 ```bash
-# If installed via pip (and 'node' command is available)
-node startproject my_website
+# If installed via pip
+node-web startproject my_website
 
-# OR if you have Node.js installed (to avoid conflict)
+# OR if you prefer the module method
 python -m webnode.cli startproject my_website
 ```
 
@@ -101,6 +101,12 @@ The **Viewer**. Renders an HTML template.
 *   **Purpose**: Returns the final HTML to the browser.
 *   **Usage**: `render = RenderNode('index.html')`
 *   **Technique**: It looks for `{placeholders}` in your HTML file and replaces them with values from `request.context`.
+
+### 7. RouterNode (`nodes.route_node`)
+The **Traffic Controller**.
+*   **Purpose**: Manages multiple URL branches.
+*   **Usage**: `router = RouterNode([url_branch1, url_branch2])`
+*   **Technique**: Pass a list of `URLNode` instances (the start of each chain) to the router. It checks each one in order.
 
 ---
 
