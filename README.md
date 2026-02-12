@@ -2,6 +2,12 @@
 
 A custom, lightweight, node-based web framework for Python. Built on top of `http.server`, it envisions web request processing as a flowchart of connected nodes.
 
+**New in v0.2.0:**
+*   **Database Support**: Built-in SQLite wrapper with support for FKs, Triggers, and Stored Procedures.
+*   **MVC Architecture**: Dedicated `ModelNode` for database interactions.
+*   **Security Suite**: Rate Limiting, CSRF Protection, Anti-Bot, and Screen Protection.
+*   **Logging**: Request logging per IP.
+
 ## 📦 Installation
 
 ### From GitHub
@@ -107,6 +113,32 @@ The **Traffic Controller**.
 *   **Purpose**: Manages multiple URL branches.
 *   **Usage**: `router = RouterNode([url_branch1, url_branch2])`
 *   **Technique**: Pass a list of `URLNode` instances (the start of each chain) to the router. It checks each one in order.
+
+### 8. ModelNode (`nodes.model_node`)
+The **Data Layer**.
+*   **Purpose**: Executes SQL queries against the internal SQLite database.
+*   **Usage**: `model = ModelNode(query="SELECT * FROM users", context_key='users')`
+*   **Features**:
+    *   **Read**: Fetches results and stores them in `request.context[context_key]`.
+    *   **Write**: Executes INSERT/UPDATE/DELETE when `is_write=True`.
+    *   **Bulk**: Automatically handles bulk inserts if the expected parameter is a list.
+
+---
+
+## 🛡️ Security & Plugins (v0.2.0)
+
+WebNode 0.2.0 includes a suite of security nodes located in `plugins/`. These are enabled by default in `settings.SECURITY`.
+
+### Security Nodes
+*   **RateLimitNode**: Limits requests per IP (Default: 50 requests / 60s).
+*   **CSRFNode**: Protects against Cross-Site Request Forgery.
+    *   GET requests receive a `csrf_token` in context.
+    *   POST requests must include `csrf_token` in the body.
+*   **AntiBotNode**: Blocks requests from common scrapers and bots based on User-Agent.
+*   **ScreenProtectionNode**: Adds a client-side overlay that turns the screen black if the user tries to take a screenshot or switches windows (Privacy feature).
+
+### Logging
+*   **ActionLoggerNode**: Logs all requests to `core/logs/{client_ip}.txt`.
 
 ---
 

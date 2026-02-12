@@ -39,6 +39,15 @@ ALLOWED_HOSTS = ['*']
 INSTALLED_NODES = [
     'nodes',
 ]
+
+SECURITY = {
+    'RATE_LIMIT_ENABLED': True,
+    'RATE_LIMIT_MAX': 50, # requests per window
+    'RATE_LIMIT_WINDOW': 60, # seconds
+    'CSRF_ENABLED': True,
+    'ANTI_SCRAPING_ENABLED': True, # User-Agent checks
+    'SCREEN_PROTECTION_ENABLED': True # Black screen on blur/printscreen
+}
 """
 
 BASE_NODE_PY = """
@@ -327,6 +336,479 @@ class RouterNode(BaseNode):
         return None
 """
 
+DB_PY = """
+import sqlite3
+import os
+import settings
+from contextlib import contextmanager
+
+class Database:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Database, cls).__new__(cls)
+            cls._instance.db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3')
+            cls._instance.conn = None 
+        return cls._instance
+
+    def get_connection(self):
+        \"\"\"Returns a new connection. 
+        Note: For transactions, we should usually reuse a connection or manage it carefully.
+        Here we return a fresh one for general use, but the transaction manager handles its own.\"\"\"
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn.execute("PRAGMA foreign_keys = ON;") # Enable Foreign Keys
+        return conn
+
+    def execute(self, query, params=()):
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        # self._register_default_functions(conn) # Register standard 'stored procs'
+        cursor = conn.cursor()
+        try:
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor
+        except Exception as e:
+            print(f"Database Error: {e}")
+            raise e
+        finally:
+            conn.close()
+
+    def executemany(self, query, params_list):
+        \"\"\"Bulk insert/update optimization.\"\"\"
+        conn = self.get_connection()
+        try:
+            with conn:
+                conn.executemany(query, params_list)
+        except Exception as e:
+            print(f"Database Error (Bulk): {e}")
+            raise e
+        finally:
+            conn.close()
+
+    def executescript(self, script):
+        \"\"\"Run a raw SQL script (good for migrations/triggers).\"\"\"
+        conn = self.get_connection()
+        try:
+            with conn:
+                conn.executescript(script)
+        except Exception as e:
+            print(f"Database Error (Script): {e}")
+            raise e
+        finally:
+            conn.close()
+
+    def fetchall(self, query, params=()):
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        # self._register_default_functions(conn)
+        cursor = conn.cursor()
+        try:
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            print(f"Database Error: {e}")
+            return []
+        finally:
+            conn.close()
+            
+    # --- "PL/SQL" Features (Stored Procedures / Functions) ---
+    def register_function(self, conn, name, num_params, func):
+        \"\"\"
+        Registers a Python function as a SQL function (Stored Procedure).
+        Usage in SQL: SELECT my_func(col) FROM table...
+        \"\"\"
+        conn.create_function(name, num_params, func)
+
+    @contextmanager
+    def transaction(self):
+        \"\"\"
+        Transaction Context Manager.
+        Usage:
+            with db.transaction() as conn:
+                db.execute_on_conn(conn, q1)
+                db.execute_on_conn(conn, q2)
+        \"\"\"
+        conn = self.get_connection()
+        try:
+            yield conn
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"Transaction Rolled Back: {e}")
+            raise e
+        finally:
+            conn.close()
+
+    def setup_tables(self):
+        # 1. Base Tables (Users)
+        create_schema = '''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_premium BOOLEAN DEFAULT 0
+        );
+        '''
+        self.executescript(create_schema)
+
+        # 2. Triggers
+        create_trigger = '''
+        CREATE TRIGGER IF NOT EXISTS validate_email_suffix
+        BEFORE INSERT ON users
+        BEGIN
+            SELECT
+            CASE
+                WHEN NEW.email NOT LIKE '%@%' THEN
+                RAISE (ABORT, 'Invalid email address')
+            END;
+        END;
+        '''
+        self.executescript(create_trigger)
+
+    # --- DDL & Schema Management ---
+
+    def create_table(self, table_name, columns_def):
+        \"\"\"
+        Creates a table with given columns definition.
+        columns_def: str, e.g., "id INTEGER PRIMARY KEY, name TEXT"
+        \"\"\"
+        query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_def});"
+        self.execute(query)
+
+    def alter_table(self, table_name, operation, details):
+        \"\"\"
+        Alters a table.
+        operation: 'ADD', 'RENAME', 'DROP' (Drop col not fully supported in old sqlite)
+        details: e.g., "COLUMN new_col TEXT"
+        \"\"\"
+        if operation.upper() == 'ADD':
+            query = f"ALTER TABLE {table_name} ADD {details};"
+        elif operation.upper() == 'RENAME':
+             query = f"ALTER TABLE {table_name} RENAME TO {details};"
+        else:
+            raise ValueError(f"Unsupported ALTER operation: {operation}")
+        self.execute(query)
+
+    def drop_table(self, table_name):
+        \"\"\"Drops a table if it exists.\"\"\"
+        query = f"DROP TABLE IF EXISTS {table_name};"
+        self.execute(query)
+
+    def create_view(self, view_name, select_query):
+        \"\"\"Creates a view.\"\"\"
+        query = f"CREATE VIEW IF NOT EXISTS {view_name} AS {select_query};"
+        self.execute(query)
+
+    def drop_view(self, view_name):
+        \"\"\"Drops a view.\"\"\"
+        query = f"DROP VIEW IF EXISTS {view_name};"
+        self.execute(query)
+
+    def create_index(self, index_name, table_name, columns, unique=False):
+        \"\"\"Creates an index.\"\"\"
+        unique_clause = "UNIQUE" if unique else ""
+        query = f"CREATE {unique_clause} INDEX IF NOT EXISTS {index_name} ON {table_name} ({columns});"
+        self.execute(query)
+"""
+
+MODEL_NODE_PY = """
+from nodes.base_node import BaseNode
+from core.db import Database
+
+class ModelNode(BaseNode):
+    \"\"\"
+    Model Component of MVC.
+    Interacts with the Database.
+    \"\"\"
+    def __init__(self, query, params_mapping=None, context_key='data', is_write=False):
+        super().__init__()
+        self.query = query
+        self.params_mapping = params_mapping or [] # List of param keys to fetch from request
+        self.context_key = context_key
+        self.is_write = is_write
+        self.db = Database()
+
+    def process(self, request):
+        \"\"\"
+        Executes the query and stores result in request.context (if read).
+        Now supports BULK insert if params resolve to a list of lists.
+        \"\"\"
+        # 1. Prepare Parameters
+        query_params = []
+        is_bulk = False
+
+        if self.params_mapping:
+            # Check if the FIRST param maps to a list (Bulk Operation Mode)
+            # This is a simple heuristic: if params_mapping has 1 key and that key holds a list of tuples/lists.
+            first_key = self.params_mapping[0]
+            val = request.context.get(first_key)
+            
+            if len(self.params_mapping) == 1 and isinstance(val, list):
+                # BULK MODE: The context variable IS the list of rows
+                query_params = val
+                is_bulk = True
+            else:
+                # STANDARD MODE: Fetch each param
+                for key in self.params_mapping:
+                    val = request.get_param(key)
+                    if val is None:
+                        val = request.context.get(key)
+                    query_params.append(val)
+        
+        # 2. Execute Query
+        if self.is_write:
+            try:
+                if is_bulk:
+                     self.db.executemany(self.query, query_params)
+                     request.context[f'{self.context_key}_count'] = len(query_params)
+                else:
+                    self.db.execute(self.query, tuple(query_params))
+                
+                # Optional: Store success flag
+                request.context[f'{self.context_key}_success'] = True
+            except Exception as e:
+                request.context['error'] = str(e)
+        else:
+            results = self.db.fetchall(self.query, tuple(query_params))
+            # Store in context
+            request.context[self.context_key] = results
+            
+        return super().process(request)
+"""
+
+SECURITY_PY = """
+from nodes.base_node import BaseNode
+import time
+import settings
+import secrets
+
+class RateLimitNode(BaseNode):
+    \"\"\"
+    Blocks IPs that exceed request limits.
+    Config: SECURITY['RATE_LIMIT_MAX'] requests per SECURITY['RATE_LIMIT_WINDOW'] seconds.
+    \"\"\"
+    def __init__(self):
+        super().__init__()
+        self.ip_registry = {} # {ip: [timestamps]}
+
+    def process(self, request):
+        if not settings.SECURITY.get('RATE_LIMIT_ENABLED', True):
+            return super().process(request)
+
+        # Get Client IP
+        client_ip = request.handler.client_address[0]
+        now = time.time()
+        
+        # Clean up old checks
+        window = settings.SECURITY.get('RATE_LIMIT_WINDOW', 10)
+        limit = settings.SECURITY.get('RATE_LIMIT_MAX', 10)
+        
+        history = self.ip_registry.get(client_ip, [])
+        # Keep only timestamps within validation window
+        history = [t for t in history if t > now - window]
+        
+        if len(history) >= limit:
+            print(f"⚠️ [Security] Rate Limit Exceeded for {client_ip}")
+            return "<h1>429 Too Many Requests</h1><p>Please wait before trying again.</p>"
+        
+        # Add current request
+        history.append(now)
+        self.ip_registry[client_ip] = history
+        
+        return super().process(request)
+
+class CSRFNode(BaseNode):
+    \"\"\"
+    Protects against Cross-Site Request Forgery.
+    - Sets a CSRF cookie on GET.
+    - Validates CSRF token in Body on POST.
+    \"\"\"
+    def process(self, request):
+        if not settings.SECURITY.get('CSRF_ENABLED', True):
+            return super().process(request)
+        
+        csrf_token = "secure-token-123" # In real app: secrets.token_hex(16)
+        
+        if request.method == "POST":
+            submitted_token = request.get_param('csrf_token')
+            if submitted_token != csrf_token:
+                 print(f"⚠️ [Security] CSRF Mismatch: Expected {csrf_token}, Got {submitted_token}")
+                 return "<h1>403 Forbidden</h1><p>CSRF Validation Failed.</p>"
+        
+        # Pass token to context
+        request.context['csrf_token'] = csrf_token
+        
+        return super().process(request)
+
+class AntiBotNode(BaseNode):
+    \"\"\"
+    Blocks Basic Bots and Scrapers.
+    \"\"\"
+    def process(self, request):
+        if not settings.SECURITY.get('ANTI_SCRAPING_ENABLED', True):
+            return super().process(request)
+
+        user_agent = request.headers.get('User-Agent', '').lower()
+        
+        # 1. Block known bot keywords
+        bot_keywords = ['curl', 'wget', 'python-requests', 'scrapy', 'bot', 'spider', 'crawler']
+        if any(keyword in user_agent for keyword in bot_keywords):
+             print(f"⚠️ [Security] Bot Detected: {user_agent}")
+             return "<h1>403 Forbidden</h1><p>No Bots Allowed.</p>"
+        
+        if 'Accept-Language' not in request.headers:
+             print(f"⚠️ [Security] Suspicious Headers (No Accept-Language)")
+             pass
+
+        return super().process(request)
+
+class ScreenProtectionNode(BaseNode):
+    \"\"\"
+    Injects "Computer Vision Blocking" scripts and styles.
+    Prevents selection, right-click, and overlays on blur.
+    \"\"\"
+    PROTECTION_SCRIPT = \"\"\"
+    <style>
+        body {
+            user-select: none; 
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        #protection-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: black;
+            color: white;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+    </style>
+    <div id="protection-overlay"><h1>Protected Content</h1></div>
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('keyup', (e) => {
+            if (e.key == 'PrintScreen') {
+                alert("Screenshots are disabled!");
+                document.getElementById('protection-overlay').style.display = 'flex';
+                setTimeout(() => { document.getElementById('protection-overlay').style.display = 'none'; }, 2000);
+            }
+        });
+        window.addEventListener('blur', () => {
+             document.getElementById('protection-overlay').style.display = 'flex';
+        });
+        window.addEventListener('focus', () => {
+             document.getElementById('protection-overlay').style.display = 'none';
+        });
+    </script>
+    \"\"\"
+
+    def process(self, request):
+        if not settings.SECURITY.get('SCREEN_PROTECTION_ENABLED', True):
+            return super().process(request)
+        
+        response_content = super().process(request)
+        
+        if isinstance(response_content, str) and "</body>" in response_content:
+            return response_content.replace("</body>", self.PROTECTION_SCRIPT + "</body>")
+            
+        return response_content
+"""
+
+LOGGER_PY = """
+from nodes.base_node import BaseNode
+import os
+import datetime
+import settings
+
+class ActionLoggerNode(BaseNode):
+    \"\"\"
+    Logs every request to a file named after the Client IP.
+    Location: core/logs/{ip}.txt
+    Format: [TIMESTAMP] METHOD PATH USER_AGENT
+    \"\"\"
+    def __init__(self):
+        super().__init__()
+        self.log_dir = os.path.join(settings.BASE_DIR, 'core', 'logs')
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
+
+    def process(self, request):
+        if not settings.LOGGING.get('ENABLED', True):
+            return super().process(request)
+
+        try:
+            client_ip = request.handler.client_address[0]
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            method = request.method
+            path = request.path
+            user_agent = request.headers.get('User-Agent', 'Unknown')
+            
+            log_entry = f"[{timestamp}] {method} {path} | UA: {user_agent}\\n"
+            
+            # File per IP
+            log_file = os.path.join(self.log_dir, f"{client_ip}.txt")
+            
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(log_entry)
+                
+        except Exception as e:
+            print(f"Logger Error: {e}")
+
+        return super().process(request)
+"""
+
+TEMPLATE_USERS_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Manager (MVC Demo)</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .user-list { text-align: left; margin-top: 20px; }
+        .user-item { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; }
+        .success-msg { color: #4ade80; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>User Manager</h1>
+            <p class="subtitle">MVC Pattern Demonstration</p>
+            
+            <!-- Add User Form -->
+            <form method="POST" action="/add_user">
+                <input type="hidden" name="csrf_token" value="{csrf_token}">
+                <div class="input-group">
+                    <input type="text" name="name" placeholder="Name" required>
+                </div>
+                <div class="input-group">
+                    <input type="email" name="email" placeholder="Email (Optional)">
+                </div>
+                <button type="submit">Add User</button>
+            </form>
+            
+            <!-- List Users -->
+             <div class="user-list">
+                <h3>Existing Users</h3>
+                {user_list_html}
+            </div>
+
+            <div style="margin-top: 20px;">
+                <a href="/" style="color: var(--primary);">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 STATIC_LOGIC_PY = """
 def check_odd_even(number):
     if number % 2 == 0:
@@ -547,82 +1029,151 @@ from nodes.logic_node import LogicNode
 from nodes.context_node import ContextNode
 from nodes.template_node import RenderNode
 from nodes.route_node import RouterNode
+from nodes.model_node import ModelNode
+from nodes.model_node import ModelNode
+from core.db import Database
 from static.logic import check_odd_even, weather_logic, time_logic
+from plugins.security import RateLimitNode, CSRFNode, AntiBotNode, ScreenProtectionNode
+from plugins.logger import ActionLoggerNode
+
+# --- Initialize Database ---
+db = Database()
+db.setup_tables()
+
+# --- Advanced DDL (User Request: "Database Features") ---
+try:
+    # 1. Create a Related Table with Foreign Key
+    db.create_table("projects", "id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE")
+    
+    # 2. Create Index on User Email for speed (if not exists)
+    db.create_index("idx_user_email", "users", "email", unique=True)
+    
+    # 3. Create a View for Premium Users
+    db.create_view("v_premium_users", "SELECT * FROM users WHERE is_premium = 1")
+    
+    print("Database Schema Updated: Projects Table (FK), Email Index, Premium View.")
+except Exception as e:
+    print(f"Schema Init Warning: {e}")
+
 
 # --- Application Logic Functions ---
+
 def index_logic(request):
-    print(request.get_param('number'))
+    # Existing logic
     if request.method == 'POST':
-        number_input = request.get_param('number')
-        result_html = ""
-        if number_input and number_input.isdigit():
-            number = int(number_input)
-            result_type = check_odd_even(number)
-            result_html = f'''
-            <div class="result {result_type}">
-                <span class="number-display">{number}</span> is <strong>{result_type}</strong>
-            </div>
-            '''
-        else:
-            result_html = '''
-            <div class="result" style="border-color: red; color: red;">
-                Please enter a valid number.
-            </div>
-            '''
-        return {'result_section': result_html}
+        number = request.get_param('number')
+        if number and number.isdigit():
+            res = check_odd_even(int(number))
+            return {'result_section': f'<div class="result {res}">{number} is {res}</div>'}
+    return {'result_section': ''}
+
+def format_user_list(request):
+    # View Helper Logic: Formats the raw list of dictionaries into HTML
+    users = request.context.get('users', [])
+    html = ""
+    if not users:
+        html = "<p>No users found.</p>"
     else:
-        return {'result_section': ''}
-
-def r1_logic(request):
-    return {'r1': 'Hello World'}
-
-def text_logic(request):
-    return {'result_text': 'Hello World'}
+        for user in users:
+            premium = "⭐" if user.get('is_premium') else ""
+            html += f'<div class="user-item"><span>{user["name"]} {premium}</span> <span style="color: #666;">{user["email"]}</span></div>'
+    return {'user_list_html': html}
 
 # --- Node Graph Construction ---
 
-# 1. Server Configuration Node (The Root)
+# 1. Server & Request
 server_node = ServerNode(port=settings.PORT)
-
-# 2. HTTP Request Processor Node
-# 2. HTTP Request Processor Node
-# ...
 http_request_node = HTTPRequestsNode()
 
-# 3. Define Branches
+# 2. Define Routes/Branches
+
+# --- HOME BRANCH ---
 url_index = URLNode('/')
 logic_index = LogicNode(index_logic)
-context_text = LogicNode(text_logic)
-logic_r1 = LogicNode(r1_logic)
+# Dummy widgets
+logic_r1 = LogicNode(lambda r: {'r1': ''}) 
 node_weather = LogicNode(weather_logic)
 node_time = LogicNode(time_logic)
 render_index = RenderNode('index.html')
 
-# Wiring: URLIndex -> Logic -> Context -> Weather -> Time -> Render
-url_index.connect(logic_index).connect(context_text).connect(logic_r1).connect(node_weather).connect(node_time).connect(render_index)
+# Wiring Home
+url_index.connect(logic_index).connect(logic_r1).connect(node_weather).connect(node_time).connect(render_index)
 
-# Router
-router_node = RouterNode([url_index])
 
-# Connect Main Line
-server_node.connect(http_request_node).connect(router_node)
+# --- USER MANAGER BRANCH (MVC) ---
+# GET /users
+url_users = URLNode('/users')
+# Model: Fetch all users
+model_fetch_users = ModelNode(
+    query="SELECT * FROM users ORDER BY id DESC",
+    context_key='users'
+)
+# Controller/Logic: Format data for view
+logic_format_users = LogicNode(format_user_list)
+# View: Render Template
+render_users = RenderNode('users.html')
+
+url_users.connect(model_fetch_users).connect(logic_format_users).connect(render_users)
+
+
+# --- ADD USER BRANCH (MVC) ---
+# POST /add_user
+url_add_user = URLNode('/add_user')
+# Model: Insert User
+# Note: Triggers in DB will validate email suffix automatically!
+model_add_user = ModelNode(
+    query="INSERT INTO users (name, email) VALUES (?, ?)",
+    params_mapping=['name', 'email'],
+    is_write=True
+)
+# Controller: Redirect back to /users (Simulated by rendering users again or redirecting)
+# For simplicity, we just fetch updated list and render users page again
+# So we connect model_add_user -> model_fetch_users -> logic -> render
+model_fetch_users_post = ModelNode(
+    query="SELECT * FROM users ORDER BY id DESC",
+    context_key='users'
+)
+logic_format_users_post = LogicNode(format_user_list)
+render_users_post = RenderNode('users.html')
+
+url_add_user.connect(model_add_user).connect(model_fetch_users_post).connect(logic_format_users_post).connect(render_users_post)
+
+
+# 3. Router
+router_node = RouterNode([url_index, url_users, url_add_user])
+
+# 4. Connect Main Line
+# 1.5 Security Middleware Chain
+# Request -> Logger -> AntiBot -> RateLimit -> CSRF -> ScreenProtection -> Router
+action_logger = ActionLoggerNode()
+security_antibot = AntiBotNode()
+security_ratelimit = RateLimitNode()
+security_csrf = CSRFNode()
+security_screen = ScreenProtectionNode()
+
+# ... (Routes) ...
+
+# 4. Connect Main Line
+# New Chain: Server -> Request -> [Logger] -> [Security] -> Router
+server_node.connect(http_request_node).connect(action_logger).connect(security_antibot).connect(security_ratelimit).connect(security_csrf).connect(security_screen).connect(router_node)
 
 if __name__ == "__main__":
     PORT = settings.PORT
-    
-    # Inject the Root Node (ServerNode) into the Handler
     FrameworkHandler.server_node = server_node
     
-    print(f"Starting n8n-style Node Graph Server at http://localhost:{PORT}")
-    print("Graph: Server -> Request -> Router -> [URL Chains] -> Logic -> Render")
-    print("Press Ctrl+C to stop.")
+    print(f"Starting MVC Framework Server at http://localhost:{PORT}")
+    print("Graph: Server -> Request -> Security -> Router -> [Chains]")
+    print("Routes available:")
+    print("  GET  /        (Home)")
+    print("  GET  /users   (User List - MVC Demo)")
+    print("  POST /add_user (Add User - MVC Demo)")
+    print("  * RDBMS Features Active: Triggers, Transactions, Stored Procs, FKs, DDL *")
     
     socketserver.TCPServer.allow_reuse_address = True
     try:
         with socketserver.TCPServer(("", PORT), FrameworkHandler) as httpd:
             httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\\nStopping server...")
         httpd.server_close()
 """
 
@@ -633,11 +1184,18 @@ def create_project():
 
     # Create Directories
     create_directory(os.path.join("nodes"))
+    create_directory(os.path.join("core"))
     create_directory(os.path.join("static"))
     create_directory(os.path.join("templates"))
+    create_directory(os.path.join("plugins"))
 
     # Write Settings
     write_file("settings.py", SETTINGS_PY)
+
+    # Write Plugins
+    write_file(os.path.join("plugins", "__init__.py"), "")
+    write_file(os.path.join("plugins", "security.py"), SECURITY_PY)
+    write_file(os.path.join("plugins", "logger.py"), LOGGER_PY)
 
     # Write Nodes
     write_file(os.path.join("nodes", "__init__.py"), "")
@@ -649,6 +1207,12 @@ def create_project():
     write_file(os.path.join("nodes", "template_node.py"), TEMPLATE_NODE_PY)
     write_file(os.path.join("nodes", "url_node.py"), URL_NODE_PY)
     write_file(os.path.join("nodes", "route_node.py"), ROUTE_NODE_PY)
+    
+    # Write Core
+    write_file(os.path.join("core", "db.py"), DB_PY)
+    
+    # Write Model Node
+    write_file(os.path.join("nodes", "model_node.py"), MODEL_NODE_PY)
 
     # Write Static Files
     write_file(os.path.join("static", "logic.py"), STATIC_LOGIC_PY)
@@ -656,6 +1220,7 @@ def create_project():
 
     # Write Template Files
     write_file(os.path.join("templates", "index.html"), TEMPLATE_INDEX_HTML)
+    write_file(os.path.join("templates", "users.html"), TEMPLATE_USERS_HTML)
 
     # Write Main.py (only if not exists, but description says 'create module that creates it')
     # Use overwrite protection for main.py to avoid destroying user work if mistakenly run
