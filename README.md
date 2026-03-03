@@ -2,11 +2,13 @@
 
 A custom, lightweight, node-based web framework for Python. Built on top of `http.server`, it envisions web request processing as a flowchart of connected nodes.
 
-**New in v0.2.0:**
-*   **Database Support**: Built-in SQLite wrapper with support for FKs, Triggers, and Stored Procedures.
+**New in v0.3.0:**
+*   **Visual Node Editor**: A built-in GUI (runs at `http://localhost:8080`) to visually wire nodes, write logic, and deploy your web app — no code needed!
+*   **Database Support**: Built-in SQLite wrapper (FKs, Triggers, Stored Procedures, DDL).
 *   **MVC Architecture**: Dedicated `ModelNode` for database interactions.
+*   **Full HTTP Support**: GET, POST, PUT, PATCH, DELETE methods fully supported.
 *   **Security Suite**: Rate Limiting, CSRF Protection, Anti-Bot, and Screen Protection.
-*   **Logging**: Request logging per IP.
+*   **Logging**: Request logging per IP to `core/logs/`.
 
 ## 📦 Installation
 
@@ -125,22 +127,56 @@ The **Data Layer**.
 
 ---
 
-## 🛡️ Security & Plugins (v0.2.0)
+## 🛡️ Security & Plugins (v0.2.0+)
 
-WebNode 0.2.0 includes a suite of security nodes located in `plugins/`. These are enabled by default in `settings.SECURITY`.
+WebNode includes a suite of security nodes in `plugins/`. These are enabled by default in `settings.SECURITY`.
 
 ### Security Nodes
 *   **RateLimitNode**: Limits requests per IP (Default: 50 requests / 60s).
-*   **CSRFNode**: Protects against Cross-Site Request Forgery.
-    *   GET requests receive a `csrf_token` in context.
-    *   POST requests must include `csrf_token` in the body.
-*   **AntiBotNode**: Blocks requests from common scrapers and bots based on User-Agent.
-*   **ScreenProtectionNode**: Adds a client-side overlay that turns the screen black if the user tries to take a screenshot or switches windows (Privacy feature).
+*   **CSRFNode**: Token-based protection for POST requests.
+*   **AntiBotNode**: Blocks requests from known bot User-Agents.
+*   **ScreenProtectionNode**: Client-side privacy overlay (black screen on screenshot/blur).
 
 ### Logging
 *   **ActionLoggerNode**: Logs all requests to `core/logs/{client_ip}.txt`.
 
 ---
+
+## ⚡ Node Editor (v0.3.0 — New!)
+
+WebNode 0.3.0 includes a **visual, browser-based Node Editor** — a graphical interface for building your web application without writing code.
+
+### How to Run the Node Editor
+
+After creating your project with `node-web startproject my_project`:
+
+```bash
+cd my_project
+python node_editor/node_backend.py
+```
+
+Open your browser at **http://localhost:8080**.
+
+### Features
+*   **Drag & Drop Nodes** from the sidebar Library panel onto the canvas.
+*   **Connect Nodes** by dragging from the `▶` out-port to the `●` in-port of another node.
+*   **Inline Python Logic** — `LogicNode` and `ContextNode` have a built-in Monaco editor (same engine as VS Code).
+*   **Deploy & Run** — Click **"Deploy & Run"** to compile your node graph into `main.py` and start the server automatically.
+*   **Stop Server** — Click **"Stop Server"** to terminate the running process.
+*   **Save JSON** — Saves your canvas as `node_editor/graph.json` (auto-loaded on restart).
+*   **Visual Flow** — Nodes glow 🟢 green when the server is live and connected, 🔴 red when offline.
+*   **Delete** — Double-click a node or wire to delete it.
+*   **Pan & Zoom** — Pan by clicking and dragging the canvas; zoom with `Ctrl + Scroll`.
+
+### Node Palette Categories
+| Category | Nodes |
+|---|---|
+| **Core** | Server Node, HTTP Request, URL Router, Logic (Python), Context (Python) |
+| **Views & DB** | Render Template, Model (SQL) |
+| **Security & Logging** | Action Logger, Anti-Bot, Rate Limit, CSRF Token, Screen Protection |
+
+---
+
 
 ## 💡 Example: Adding a New "About" Page
 

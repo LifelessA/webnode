@@ -2,16 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
     name='webnode',
-    version='0.2.0',
+    version='0.3.0',
     packages=find_packages(),
+    package_data={
+        'webnode': ['_editor_files/*'],
+    },
     install_requires=[
-        # Add any dependencies here if needed in the future
+        # Standard library only — no external dependencies!
     ],
     entry_points={
         'console_scripts': [
             'node-web=webnode.cli:main',
         ],
     },
-    author='User',
-    description='A custom node-based web framework.',
+    author='LifelessA',
+    description='A custom node-based web framework with a visual Node Editor.',
 )

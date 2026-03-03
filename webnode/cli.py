@@ -97,8 +97,9 @@ class ServerNode(BaseNode):
     Configures the server port and initiates the request processing graph.
     Connects to HTTPRequestNode.
     \"\"\"
-    def __init__(self, port=8000):
+    def __init__(self, host='127.0.0.1', port=8000):
         super().__init__()
+        self.host = host
         self.port = port
 
     def start_flow(self, handler):
@@ -137,6 +138,15 @@ class FrameworkHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         return self.handle_graph_request('POST')
+
+    def do_PUT(self):
+        return self.handle_graph_request('PUT')
+
+    def do_PATCH(self):
+        return self.handle_graph_request('PATCH')
+
+    def do_DELETE(self):
+        return self.handle_graph_request('DELETE')
 """
 
 HTTP_REQUESTS_NODE_PY = """
@@ -163,17 +173,32 @@ class HTTPRequestsNode(BaseNode):
 class RequestWrapper:
     \"\"\"
     Simple wrapper to mimic the previous request object interface.
+    
+    Supported HTTP Methods and CRUD Mapping:
+    Method | CRUD Action      | Idempotent?* | Description
+    -------|------------------|--------------|---------------------------------------------
+    GET    | Read             | Yes          | Requests data from a resource.
+    POST   | Create           | No           | Submits data to be processed.
+    PUT    | Update (Full)    | Yes          | Replaces the target resource with the request payload.
+    PATCH  | Update (Partial) | No           | Applies partial modifications to a resource.
+    DELETE | Delete           | Yes          | Deletes the specified resource.
     \"\"\"
     def __init__(self, handler):
         self.handler = handler
-        self.path = handler.path
+        parsed_url = urllib.parse.urlparse(handler.path)
+        self.path = parsed_url.path
         self.headers = handler.headers
         self.method = handler.command
+        
+        # Parse query parameters from URL
+        self.query_params = {k: v[0] if len(v) == 1 else v for k, v in urllib.parse.parse_qs(parsed_url.query).items()}
+        
         self.params = {}
         self.context = {}
         self.body_bytes = b""
         
-        if self.method == 'POST':
+        # Parse body for methods that typically include a payload
+        if self.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
             self.parse_body()
 
     def parse_body(self):
@@ -314,7 +339,15 @@ class URLNode(BaseNode):
         If match: Passes request to the next node (Logic).
         If no match: Returns None.
         \"\"\"
-        if self.path == request.path:
+        # Standardize paths to single leading slash for comparison
+        req_path = request.path if request.path.startswith('/') else '/' + request.path
+        config_path = self.path if self.path.startswith('/') else '/' + self.path
+        
+        # Remove trailing slashes for identical matching unless root
+        req_path_clean = req_path.rstrip('/') if req_path != '/' else '/'
+        config_path_clean = config_path.rstrip('/') if config_path != '/' else '/'
+
+        if req_path_clean == config_path_clean:
             return super().process(request)
         return None
 """
@@ -357,9 +390,7 @@ class Database:
         return cls._instance
 
     def get_connection(self):
-        \"\"\"Returns a new connection. 
-        Note: For transactions, we should usually reuse a connection or manage it carefully.
-        Here we return a fresh one for general use, but the transaction manager handles its own.\"\"\"
+        \"\"\"Returns a new connection.\"\"\"
         conn = sqlite3.connect(self.db_path, check_same_thread=False)
         conn.execute("PRAGMA foreign_keys = ON;") # Enable Foreign Keys
         return conn
@@ -367,7 +398,6 @@ class Database:
     def execute(self, query, params=()):
         conn = self.get_connection()
         conn.row_factory = sqlite3.Row
-        # self._register_default_functions(conn) # Register standard 'stored procs'
         cursor = conn.cursor()
         try:
             cursor.execute(query, params)
@@ -406,7 +436,6 @@ class Database:
     def fetchall(self, query, params=()):
         conn = self.get_connection()
         conn.row_factory = sqlite3.Row
-        # self._register_default_functions(conn)
         cursor = conn.cursor()
         try:
             cursor.execute(query, params)
@@ -418,23 +447,11 @@ class Database:
         finally:
             conn.close()
             
-    # --- "PL/SQL" Features (Stored Procedures / Functions) ---
     def register_function(self, conn, name, num_params, func):
-        \"\"\"
-        Registers a Python function as a SQL function (Stored Procedure).
-        Usage in SQL: SELECT my_func(col) FROM table...
-        \"\"\"
         conn.create_function(name, num_params, func)
 
     @contextmanager
     def transaction(self):
-        \"\"\"
-        Transaction Context Manager.
-        Usage:
-            with db.transaction() as conn:
-                db.execute_on_conn(conn, q1)
-                db.execute_on_conn(conn, q2)
-        \"\"\"
         conn = self.get_connection()
         try:
             yield conn
@@ -447,7 +464,6 @@ class Database:
             conn.close()
 
     def setup_tables(self):
-        # 1. Base Tables (Users)
         create_schema = '''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -458,8 +474,6 @@ class Database:
         );
         '''
         self.executescript(create_schema)
-
-        # 2. Triggers
         create_trigger = '''
         CREATE TRIGGER IF NOT EXISTS validate_email_suffix
         BEFORE INSERT ON users
@@ -473,22 +487,11 @@ class Database:
         '''
         self.executescript(create_trigger)
 
-    # --- DDL & Schema Management ---
-
     def create_table(self, table_name, columns_def):
-        \"\"\"
-        Creates a table with given columns definition.
-        columns_def: str, e.g., "id INTEGER PRIMARY KEY, name TEXT"
-        \"\"\"
         query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_def});"
         self.execute(query)
 
     def alter_table(self, table_name, operation, details):
-        \"\"\"
-        Alters a table.
-        operation: 'ADD', 'RENAME', 'DROP' (Drop col not fully supported in old sqlite)
-        details: e.g., "COLUMN new_col TEXT"
-        \"\"\"
         if operation.upper() == 'ADD':
             query = f"ALTER TABLE {table_name} ADD {details};"
         elif operation.upper() == 'RENAME':
@@ -498,22 +501,18 @@ class Database:
         self.execute(query)
 
     def drop_table(self, table_name):
-        \"\"\"Drops a table if it exists.\"\"\"
         query = f"DROP TABLE IF EXISTS {table_name};"
         self.execute(query)
 
     def create_view(self, view_name, select_query):
-        \"\"\"Creates a view.\"\"\"
         query = f"CREATE VIEW IF NOT EXISTS {view_name} AS {select_query};"
         self.execute(query)
 
     def drop_view(self, view_name):
-        \"\"\"Drops a view.\"\"\"
         query = f"DROP VIEW IF EXISTS {view_name};"
         self.execute(query)
 
     def create_index(self, index_name, table_name, columns, unique=False):
-        \"\"\"Creates an index.\"\"\"
         unique_clause = "UNIQUE" if unique else ""
         query = f"CREATE {unique_clause} INDEX IF NOT EXISTS {index_name} ON {table_name} ({columns});"
         self.execute(query)
@@ -531,39 +530,29 @@ class ModelNode(BaseNode):
     def __init__(self, query, params_mapping=None, context_key='data', is_write=False):
         super().__init__()
         self.query = query
-        self.params_mapping = params_mapping or [] # List of param keys to fetch from request
+        self.params_mapping = params_mapping or []
         self.context_key = context_key
         self.is_write = is_write
         self.db = Database()
 
     def process(self, request):
-        \"\"\"
-        Executes the query and stores result in request.context (if read).
-        Now supports BULK insert if params resolve to a list of lists.
-        \"\"\"
-        # 1. Prepare Parameters
         query_params = []
         is_bulk = False
 
         if self.params_mapping:
-            # Check if the FIRST param maps to a list (Bulk Operation Mode)
-            # This is a simple heuristic: if params_mapping has 1 key and that key holds a list of tuples/lists.
             first_key = self.params_mapping[0]
             val = request.context.get(first_key)
             
             if len(self.params_mapping) == 1 and isinstance(val, list):
-                # BULK MODE: The context variable IS the list of rows
                 query_params = val
                 is_bulk = True
             else:
-                # STANDARD MODE: Fetch each param
                 for key in self.params_mapping:
                     val = request.get_param(key)
                     if val is None:
                         val = request.context.get(key)
                     query_params.append(val)
         
-        # 2. Execute Query
         if self.is_write:
             try:
                 if is_bulk:
@@ -571,14 +560,11 @@ class ModelNode(BaseNode):
                      request.context[f'{self.context_key}_count'] = len(query_params)
                 else:
                     self.db.execute(self.query, tuple(query_params))
-                
-                # Optional: Store success flag
                 request.context[f'{self.context_key}_success'] = True
             except Exception as e:
                 request.context['error'] = str(e)
         else:
             results = self.db.fetchall(self.query, tuple(query_params))
-            # Store in context
             request.context[self.context_key] = results
             
         return super().process(request)
@@ -597,45 +583,36 @@ class RateLimitNode(BaseNode):
     \"\"\"
     def __init__(self):
         super().__init__()
-        self.ip_registry = {} # {ip: [timestamps]}
+        self.ip_registry = {}
 
     def process(self, request):
         if not settings.SECURITY.get('RATE_LIMIT_ENABLED', True):
             return super().process(request)
 
-        # Get Client IP
         client_ip = request.handler.client_address[0]
         now = time.time()
-        
-        # Clean up old checks
         window = settings.SECURITY.get('RATE_LIMIT_WINDOW', 10)
         limit = settings.SECURITY.get('RATE_LIMIT_MAX', 10)
-        
         history = self.ip_registry.get(client_ip, [])
-        # Keep only timestamps within validation window
         history = [t for t in history if t > now - window]
         
         if len(history) >= limit:
             print(f"⚠️ [Security] Rate Limit Exceeded for {client_ip}")
             return "<h1>429 Too Many Requests</h1><p>Please wait before trying again.</p>"
         
-        # Add current request
         history.append(now)
         self.ip_registry[client_ip] = history
-        
         return super().process(request)
 
 class CSRFNode(BaseNode):
     \"\"\"
     Protects against Cross-Site Request Forgery.
-    - Sets a CSRF cookie on GET.
-    - Validates CSRF token in Body on POST.
     \"\"\"
     def process(self, request):
         if not settings.SECURITY.get('CSRF_ENABLED', True):
             return super().process(request)
         
-        csrf_token = "secure-token-123" # In real app: secrets.token_hex(16)
+        csrf_token = "secure-token-123"
         
         if request.method == "POST":
             submitted_token = request.get_param('csrf_token')
@@ -643,9 +620,7 @@ class CSRFNode(BaseNode):
                  print(f"⚠️ [Security] CSRF Mismatch: Expected {csrf_token}, Got {submitted_token}")
                  return "<h1>403 Forbidden</h1><p>CSRF Validation Failed.</p>"
         
-        # Pass token to context
         request.context['csrf_token'] = csrf_token
-        
         return super().process(request)
 
 class AntiBotNode(BaseNode):
@@ -657,16 +632,10 @@ class AntiBotNode(BaseNode):
             return super().process(request)
 
         user_agent = request.headers.get('User-Agent', '').lower()
-        
-        # 1. Block known bot keywords
         bot_keywords = ['curl', 'wget', 'python-requests', 'scrapy', 'bot', 'spider', 'crawler']
         if any(keyword in user_agent for keyword in bot_keywords):
              print(f"⚠️ [Security] Bot Detected: {user_agent}")
              return "<h1>403 Forbidden</h1><p>No Bots Allowed.</p>"
-        
-        if 'Accept-Language' not in request.headers:
-             print(f"⚠️ [Security] Suspicious Headers (No Accept-Language)")
-             pass
 
         return super().process(request)
 
@@ -735,7 +704,6 @@ class ActionLoggerNode(BaseNode):
     \"\"\"
     Logs every request to a file named after the Client IP.
     Location: core/logs/{ip}.txt
-    Format: [TIMESTAMP] METHOD PATH USER_AGENT
     \"\"\"
     def __init__(self):
         super().__init__()
@@ -753,15 +721,10 @@ class ActionLoggerNode(BaseNode):
             method = request.method
             path = request.path
             user_agent = request.headers.get('User-Agent', 'Unknown')
-            
             log_entry = f"[{timestamp}] {method} {path} | UA: {user_agent}\\n"
-            
-            # File per IP
             log_file = os.path.join(self.log_dir, f"{client_ip}.txt")
-            
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(log_entry)
-                
         except Exception as e:
             print(f"Logger Error: {e}")
 
@@ -777,7 +740,6 @@ TEMPLATE_USERS_HTML = """<!DOCTYPE html>
     <style>
         .user-list { text-align: left; margin-top: 20px; }
         .user-item { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; }
-        .success-msg { color: #4ade80; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -785,8 +747,6 @@ TEMPLATE_USERS_HTML = """<!DOCTYPE html>
         <div class="card">
             <h1>User Manager</h1>
             <p class="subtitle">MVC Pattern Demonstration</p>
-            
-            <!-- Add User Form -->
             <form method="POST" action="/add_user">
                 <input type="hidden" name="csrf_token" value="{csrf_token}">
                 <div class="input-group">
@@ -797,13 +757,10 @@ TEMPLATE_USERS_HTML = """<!DOCTYPE html>
                 </div>
                 <button type="submit">Add User</button>
             </form>
-            
-            <!-- List Users -->
              <div class="user-list">
                 <h3>Existing Users</h3>
                 {user_list_html}
             </div>
-
             <div style="margin-top: 20px;">
                 <a href="/" style="color: var(--primary);">Back to Home</a>
             </div>
@@ -871,11 +828,7 @@ body {
     background-image: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
 }
 
-.container {
-    width: 100%;
-    max-width: 400px;
-    padding: 20px;
-}
+.container { width: 100%; max-width: 400px; padding: 20px; }
 
 .card {
     background: var(--card-bg);
@@ -896,14 +849,8 @@ h1 {
     -webkit-text-fill-color: transparent;
 }
 
-.subtitle {
-    color: var(--text-sub);
-    margin-bottom: 2rem;
-}
-
-.input-group {
-    margin-bottom: 1.5rem;
-}
+.subtitle { color: var(--text-sub); margin-bottom: 2rem; }
+.input-group { margin-bottom: 1.5rem; }
 
 input {
     width: 100%;
@@ -935,13 +882,8 @@ button {
     transition: transform 0.1s, background-color 0.3s;
 }
 
-button:hover {
-    background-color: var(--primary-hover);
-}
-
-button:active {
-    transform: scale(0.98);
-}
+button:hover { background-color: var(--primary-hover); }
+button:active { transform: scale(0.98); }
 
 .result {
     margin-top: 2rem;
@@ -952,21 +894,8 @@ button:active {
     animation: slideUp 0.3s ease-out;
 }
 
-.result.Even {
-    border-color: #34d399; /* Greenish */
-    color: #34d399;
-}
-
-.result.Odd {
-    border-color: #f472b6; /* Pinkish */
-    color: #f472b6;
-}
-
-.number-display {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--text-main);
-}
+.result.Even { border-color: #34d399; color: #34d399; }
+.result.Odd { border-color: #f472b6; color: #f472b6; }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-20px); }
@@ -981,14 +910,12 @@ button:active {
 
 TEMPLATE_INDEX_HTML = """<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Odd or Even?</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
     {result_text}
     <div class="container">
@@ -996,20 +923,14 @@ TEMPLATE_INDEX_HTML = """<!DOCTYPE html>
         <div class="card">
             <h1>Odd or Even?</h1>
             <p class="subtitle">Enter a number to find out.</p>
-
             <form method="POST" action="/">
+                <input type="hidden" name="csrf_token" value="{csrf_token}">
                 <div class="input-group">
                     <input type="number" name="number" placeholder="e.g., 42" required>
                 </div>
-                <div class="input-group">
-                    <input type="text" name="test" placeholder="e.g.,hy">
-                </div>
                 <button type="submit">Check Number</button>
             </form>
-
-            <!-- RESULT_PLACEHOLDER -->
             {result_section}
-
             <div class="widgets-area">
                 {weather_widget}
                 {time_widget}
@@ -1017,7 +938,6 @@ TEMPLATE_INDEX_HTML = """<!DOCTYPE html>
         </div>
     </div>
 </body>
-
 </html>
 """
 
@@ -1034,7 +954,6 @@ from nodes.context_node import ContextNode
 from nodes.template_node import RenderNode
 from nodes.route_node import RouterNode
 from nodes.model_node import ModelNode
-from nodes.model_node import ModelNode
 from core.db import Database
 from static.logic import check_odd_even, weather_logic, time_logic
 from plugins.security import RateLimitNode, CSRFNode, AntiBotNode, ScreenProtectionNode
@@ -1044,26 +963,16 @@ from plugins.logger import ActionLoggerNode
 db = Database()
 db.setup_tables()
 
-# --- Advanced DDL (User Request: "Database Features") ---
 try:
-    # 1. Create a Related Table with Foreign Key
     db.create_table("projects", "id INTEGER PRIMARY KEY, user_id INTEGER, title TEXT, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE")
-    
-    # 2. Create Index on User Email for speed (if not exists)
     db.create_index("idx_user_email", "users", "email", unique=True)
-    
-    # 3. Create a View for Premium Users
     db.create_view("v_premium_users", "SELECT * FROM users WHERE is_premium = 1")
-    
-    print("Database Schema Updated: Projects Table (FK), Email Index, Premium View.")
+    print("Database Schema Updated.")
 except Exception as e:
     print(f"Schema Init Warning: {e}")
 
 
-# --- Application Logic Functions ---
-
 def index_logic(request):
-    # Existing logic
     if request.method == 'POST':
         number = request.get_param('number')
         if number and number.isdigit():
@@ -1072,7 +981,6 @@ def index_logic(request):
     return {'result_section': ''}
 
 def format_user_list(request):
-    # View Helper Logic: Formats the raw list of dictionaries into HTML
     users = request.context.get('users', [])
     html = ""
     if not users:
@@ -1083,82 +991,38 @@ def format_user_list(request):
             html += f'<div class="user-item"><span>{user["name"]} {premium}</span> <span style="color: #666;">{user["email"]}</span></div>'
     return {'user_list_html': html}
 
-# --- Node Graph Construction ---
-
-# 1. Server & Request
 server_node = ServerNode(port=settings.PORT)
 http_request_node = HTTPRequestsNode()
 
-# 2. Define Routes/Branches
-
-# --- HOME BRANCH ---
 url_index = URLNode('/')
 logic_index = LogicNode(index_logic)
-# Dummy widgets
 logic_r1 = LogicNode(lambda r: {'r1': ''}) 
 node_weather = LogicNode(weather_logic)
 node_time = LogicNode(time_logic)
 render_index = RenderNode('index.html')
-
-# Wiring Home
 url_index.connect(logic_index).connect(logic_r1).connect(node_weather).connect(node_time).connect(render_index)
 
-
-# --- USER MANAGER BRANCH (MVC) ---
-# GET /users
 url_users = URLNode('/users')
-# Model: Fetch all users
-model_fetch_users = ModelNode(
-    query="SELECT * FROM users ORDER BY id DESC",
-    context_key='users'
-)
-# Controller/Logic: Format data for view
+model_fetch_users = ModelNode(query="SELECT * FROM users ORDER BY id DESC", context_key='users')
 logic_format_users = LogicNode(format_user_list)
-# View: Render Template
 render_users = RenderNode('users.html')
-
 url_users.connect(model_fetch_users).connect(logic_format_users).connect(render_users)
 
-
-# --- ADD USER BRANCH (MVC) ---
-# POST /add_user
 url_add_user = URLNode('/add_user')
-# Model: Insert User
-# Note: Triggers in DB will validate email suffix automatically!
-model_add_user = ModelNode(
-    query="INSERT INTO users (name, email) VALUES (?, ?)",
-    params_mapping=['name', 'email'],
-    is_write=True
-)
-# Controller: Redirect back to /users (Simulated by rendering users again or redirecting)
-# For simplicity, we just fetch updated list and render users page again
-# So we connect model_add_user -> model_fetch_users -> logic -> render
-model_fetch_users_post = ModelNode(
-    query="SELECT * FROM users ORDER BY id DESC",
-    context_key='users'
-)
+model_add_user = ModelNode(query="INSERT INTO users (name, email) VALUES (?, ?)", params_mapping=['name', 'email'], is_write=True)
+model_fetch_users_post = ModelNode(query="SELECT * FROM users ORDER BY id DESC", context_key='users')
 logic_format_users_post = LogicNode(format_user_list)
 render_users_post = RenderNode('users.html')
-
 url_add_user.connect(model_add_user).connect(model_fetch_users_post).connect(logic_format_users_post).connect(render_users_post)
 
-
-# 3. Router
 router_node = RouterNode([url_index, url_users, url_add_user])
 
-# 4. Connect Main Line
-# 1.5 Security Middleware Chain
-# Request -> Logger -> AntiBot -> RateLimit -> CSRF -> ScreenProtection -> Router
 action_logger = ActionLoggerNode()
 security_antibot = AntiBotNode()
 security_ratelimit = RateLimitNode()
 security_csrf = CSRFNode()
 security_screen = ScreenProtectionNode()
 
-# ... (Routes) ...
-
-# 4. Connect Main Line
-# New Chain: Server -> Request -> [Logger] -> [Security] -> Router
 server_node.connect(http_request_node).connect(action_logger).connect(security_antibot).connect(security_ratelimit).connect(security_csrf).connect(security_screen).connect(router_node)
 
 if __name__ == "__main__":
@@ -1166,12 +1030,7 @@ if __name__ == "__main__":
     FrameworkHandler.server_node = server_node
     
     print(f"Starting MVC Framework Server at http://localhost:{PORT}")
-    print("Graph: Server -> Request -> Security -> Router -> [Chains]")
-    print("Routes available:")
-    print("  GET  /        (Home)")
-    print("  GET  /users   (User List - MVC Demo)")
-    print("  POST /add_user (Add User - MVC Demo)")
-    print("  * RDBMS Features Active: Triggers, Transactions, Stored Procs, FKs, DDL *")
+    print("To launch the visual Node Editor, run: python node_editor/node_backend.py")
     
     socketserver.TCPServer.allow_reuse_address = True
     try:
@@ -1181,10 +1040,16 @@ if __name__ == "__main__":
         httpd.server_close()
 """
 
+# --- Node Editor GUI Files ---
+
+WEBNODE_HTML = open(os.path.join(os.path.dirname(__file__), '_editor_files', 'index.html'), 'r', encoding='utf-8').read() if os.path.exists(os.path.join(os.path.dirname(__file__), '_editor_files', 'index.html')) else ""
+WEBNODE_CSS = open(os.path.join(os.path.dirname(__file__), '_editor_files', 'styles.css'), 'r', encoding='utf-8').read() if os.path.exists(os.path.join(os.path.dirname(__file__), '_editor_files', 'styles.css')) else ""
+WEBNODE_JS = open(os.path.join(os.path.dirname(__file__), '_editor_files', 'canvas.js'), 'r', encoding='utf-8').read() if os.path.exists(os.path.join(os.path.dirname(__file__), '_editor_files', 'canvas.js')) else ""
+WEBNODE_BACKEND_PY = open(os.path.join(os.path.dirname(__file__), '_editor_files', 'node_backend.py'), 'r', encoding='utf-8').read() if os.path.exists(os.path.join(os.path.dirname(__file__), '_editor_files', 'node_backend.py')) else ""
+
 # --- Creation Logic (CLI Version) ---
 
 def create_project(project_name):
-    # Absolute path for the new project
     base_path = os.path.join(os.getcwd(), project_name)
     
     if os.path.exists(base_path):
@@ -1194,25 +1059,22 @@ def create_project(project_name):
     print(f"Initializing Framework Project '{project_name}'...")
     create_directory(base_path)
 
-    # Create Subdirectories
     create_directory(os.path.join(base_path, "nodes"))
     create_directory(os.path.join(base_path, "core"))
     create_directory(os.path.join(base_path, "static"))
     create_directory(os.path.join(base_path, "templates"))
     create_directory(os.path.join(base_path, "plugins"))
+    create_directory(os.path.join(base_path, "node_editor"))
 
-    # Write Settings
     write_file(os.path.join(base_path, "settings.py"), SETTINGS_PY)
 
-    # Write Plugins
     write_file(os.path.join(base_path, "plugins", "__init__.py"), "")
     write_file(os.path.join(base_path, "plugins", "security.py"), SECURITY_PY)
     write_file(os.path.join(base_path, "plugins", "logger.py"), LOGGER_PY)
 
-    # Write Nodes
     write_file(os.path.join(base_path, "nodes", "__init__.py"), "")
-    write_file(os.path.join("nodes", "base_node.py"), BASE_NODE_PY)
-    write_file(os.path.join("nodes", "server_node.py"), SERVER_NODE_PY)
+    write_file(os.path.join(base_path, "nodes", "base_node.py"), BASE_NODE_PY)
+    write_file(os.path.join(base_path, "nodes", "server_node.py"), SERVER_NODE_PY)
     write_file(os.path.join(base_path, "nodes", "http_requests_node.py"), HTTP_REQUESTS_NODE_PY)
     write_file(os.path.join(base_path, "nodes", "context_node.py"), CONTEXT_NODE_PY)
     write_file(os.path.join(base_path, "nodes", "logic_node.py"), LOGIC_NODE_PY)
@@ -1220,38 +1082,42 @@ def create_project(project_name):
     write_file(os.path.join(base_path, "nodes", "url_node.py"), URL_NODE_PY)
     write_file(os.path.join(base_path, "nodes", "route_node.py"), ROUTE_NODE_PY)
     
-    # Write Core
     write_file(os.path.join(base_path, "core", "db.py"), DB_PY)
-    
-    # Write Model Node
     write_file(os.path.join(base_path, "nodes", "model_node.py"), MODEL_NODE_PY)
 
-    # Write Static Files
     write_file(os.path.join(base_path, "static", "logic.py"), STATIC_LOGIC_PY)
     write_file(os.path.join(base_path, "static", "style.css"), STATIC_STYLE_CSS)
-
-    # Write Template Files
     write_file(os.path.join(base_path, "templates", "index.html"), TEMPLATE_INDEX_HTML)
     write_file(os.path.join(base_path, "templates", "users.html"), TEMPLATE_USERS_HTML)
 
-    # Write Main.py
+    # Node Editor Files from bundled data
+    _editor_src = os.path.join(os.path.dirname(__file__), '_editor_files')
+    for fname in ['index.html', 'styles.css', 'canvas.js', 'node_backend.py']:
+        src = os.path.join(_editor_src, fname)
+        dst = os.path.join(base_path, 'node_editor', fname)
+        if os.path.exists(src):
+            with open(src, 'r', encoding='utf-8') as f:
+                content = f.read()
+            with open(dst, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print(f"Created file: {dst}")
+
     write_file(os.path.join(base_path, "main.py"), MAIN_PY)
 
-    # Secret Key
     secret_file = os.path.join(base_path, ".secret_key")
     key = secrets.token_urlsafe(50)
     with open(secret_file, 'w') as f:
         f.write(key)
     print("Generated new secret key.")
 
-    print(f"\\nProject '{project_name}' created successfully.")
-    print(f"To start the server, run:\\n  cd {project_name}\\n  python main.py")
+    print(f"\nProject '{project_name}' created successfully.")
+    print(f"To start the server:  cd {project_name} && python main.py")
+    print(f"To launch Node Editor: cd {project_name} && python node_editor/node_backend.py")
 
 def main():
     parser = argparse.ArgumentParser(description="WebNode Framework CLI")
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
-    # startproject command
     startproject_parser = subparsers.add_parser('startproject', help='Create a new WebNode project')
     startproject_parser.add_argument('name', help='Name of the project directory')
 
