@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Monaco Editor Core -->
+    <script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } };</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.nls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.js"></script>
+</head>
+
+<body>
+
+    <!-- Top Toolbar -->
+    <div id="toolbar">
+        <div class="logo">⚡ Node Editor</div>
+        <div class="controls">
+            <button class="btn btn-primary" id="btn-deploy">Deploy &amp; Run</button>
+            <button class="btn btn-danger" id="btn-stop">Stop Server</button>
+            <button class="btn btn-secondary" id="btn-save">Save JSON</button>
+            <button class="btn btn-secondary" id="btn-clear">Clear Canvas</button>
+        </div>
+        <div id="status-indicator">● Offline</div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div id="workspace">
+        <!-- Sidebar: Node Palette -->
+        <div id="sidebar">
+            <h3>Library</h3>
+            <p style="font-size: 0.75rem; color: #aaa; margin-bottom: 15px;">
+                Drag to add nodes.<br>
+                Double-click node or wire to delete.
+            </p>
+
+            <div class="category">Core</div>
+            <div class="palette-node" draggable="true" data-type="ServerNode">Server Node</div>
+            <div class="palette-node" draggable="true" data-type="HTTPRequestsNode">HTTP Request</div>
+            <div class="palette-node" draggable="true" data-type="URLNode">URL Router</div>
+            <div class="palette-node" draggable="true" data-type="LogicNode">Logic (Python)</div>
+            <div class="palette-node" draggable="true" data-type="ContextNode">Context (Python)</div>
+
+            <div class="category">Views &amp; DB</div>
+            <div class="palette-node" draggable="true" data-type="RenderNode">Render Template</div>
+            <div class="palette-node" draggable="true" data-type="CSSNode">CSS Style</div>
+            <div class="palette-node" draggable="true" data-type="ModelNode">Model (SQL)</div>
+
+            <div class="category">Security &amp; Logging</div>
+            <div class="palette-node" draggable="true" data-type="ActionLoggerNode">Action Logger</div>
+            <div class="palette-node" draggable="true" data-type="AntiBotNode">Anti-Bot</div>
+            <div class="palette-node" draggable="true" data-type="RateLimitNode">Rate Limit</div>
+            <div class="palette-node" draggable="true" data-type="CSRFNode">CSRF Token</div>
+            <div class="palette-node" draggable="true" data-type="ScreenProtectionNode">Screen Protection</div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div id="canvas-container">
+            <!-- SVG for Wires (Noodles) -->
+            <svg id="wire-layer" width="100%" height="100%"></svg>
+
+            <!-- Nodes Container (Pan/Zoom layer) -->
+            <div id="canvas-layer">
+                <!-- Nodes will be injected here dynamically -->
+
+                <!-- Default Server Node Example -->
+                <div class="node server-node status-green" id="node-1" style="left: 100px; top: 100px;"
+                    data-type="ServerNode">
+                    <div class="node-header">
+                        Server Node
+                        <div class="port out-port" data-node="node-1" data-port="out"></div>
+                    </div>
+                    <div class="node-body">
+                        <label>IP Address</label>
+                        <input type="text" value="127.0.0.1" class="node-input ip-input">
+                        <label>Port</label>
+                        <input type="number" value="8000" class="node-input port-input">
+                        <div class="node-actions">
+                            <button class="node-btn">Live/Stop</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Example URL Node -->
+                <div class="node url-node status-red" id="node-2" style="left: 450px; top: 100px;" data-type="URLNode">
+                    <div class="node-header">
+                        <div class="port in-port" data-node="node-2" data-port="in"></div>
+                        URL Router
+                        <div class="port out-port" data-node="node-2" data-port="out"></div>
+                    </div>
+                    <div class="node-body">
+                        <label>Path</label>
+                        <input type="text" value="/api/data" class="node-input path-input">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Node Templates for Drag & Drop -->
+    <div id="node-templates" style="display: none;">
+
+        <!-- ServerNode Template -->
+        <div class="node server-node status-red" data-type="ServerNode">
+            <div class="node-header">
+                Server Node
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <label>IP Address</label>
+                <input type="text" value="127.0.0.1" class="node-input ip-input">
+                <label>Port</label>
+                <input type="number" value="8000" class="node-input port-input">
+                <div class="node-actions"><button class="node-btn">Live/Stop</button></div>
+            </div>
+        </div>
+
+        <!-- HTTPRequest Template -->
+        <div class="node http-node status-red" data-type="HTTPRequestsNode">
+            <div class="node-header">
+                <div class="port in-port" data-port="in"></div>
+                HTTP Request
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <p style="font-size: 0.8rem; color: #666; text-align: center;">Parses raw request</p>
+            </div>
+        </div>
+
+        <!-- URLNode Template -->
+        <div class="node url-node status-red" data-type="URLNode">
+            <div class="node-header">
+                <div class="port in-port" data-port="in"></div>
+                URL Router
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <label>Path</label>
+                <input type="text" value="/" class="node-input path-input">
+            </div>
+        </div>
+
+        <!-- LogicNode Template (Monaco) -->
+        <div class="node logic-node status-red" data-type="LogicNode" style="width: 400px;">
+            <div class="node-header">
+                <div class="port in-port" data-port="in"></div>
+                Logic (Python)
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <label>Function Logic (def node_logic(request):)</label>
+                <!-- Monaco instance will mount here -->
+                <div class="monaco-container"></div>
+            </div>
+        </div>
+
+        <!-- RenderNode Template -->
+        <div class="node render-node status-red" data-type="RenderNode" style="width: 400px;">
+            <div class="node-header">
+                <div class="port in-port" data-port="in"></div>
+                Render Template
+            </div>
+            <div class="node-body">
+                <label>Template Filename (Optional)</label>
+                <input type="text" placeholder="e.g. index.html" class="node-input filename-input">
+                <label>HTML Content</label>
+                <div class="monaco-container"></div>
+            </div>
+        </div>
+
+        <!-- CSSNode Template -->
+        <div class="node css-node status-red" data-type="CSSNode" style="width: 420px;">
+            <div class="node-header">
+                🎨 CSS Style
+            </div>
+            <div class="node-body">
+                <label>Filename (saved to /static/)</label>
+                <input type="text" placeholder="e.g. shop.css" class="node-input css-filename-input">
+                <label>CSS Code</label>
+                <div class="monaco-container" style="height: 250px;"></div>
+            </div>
+        </div>
+
+        <!-- ModelNode Template -->
+        <div class="node model-node status-red" data-type="ModelNode" style="width: 320px;">
+            <div class="node-header">
+                <div class="port in-port" data-port="in"></div>
+                Model (SQL Database)
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <label>SQL Query</label>
+                <input type="text" value="SELECT * FROM users" class="node-input query-input">
+                <label>Params Mapping (comma separated)</label>
+                <input type="text" placeholder="e.g., id, name" class="node-input params-input">
+                <label>Context Key</label>
+                <input type="text" value="data" class="node-input context-input">
+                <div style="display:flex; align-items:center; gap:5px; margin-top:5px;">
+                    <input type="checkbox" class="is-write-input"> <label style="margin:0;">Is Write Query?</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ContextNode Template (Monaco) -->
+        <div class="node context-node status-red" data-type="ContextNode" style="width: 400px;">
+            <div class="node-header">
+                <div class="port in-port" data-port="in"></div>
+                Context (Python)
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <label>Update request.context (def node_logic(request):)</label>
+                <div class="monaco-container"></div>
+            </div>
+        </div>
+
+        <!-- Security specific Templates -->
+        <div class="node logger-node status-green" data-type="ActionLoggerNode">
+            <div class="node-header bg-dark">
+                <div class="port in-port" data-port="in"></div>
+                Action Logger
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <p style="font-size: 0.8rem; color: #666; text-align: center;">Logs requests to /core/logs</p>
+            </div>
+        </div>
+
+        <div class="node antibot-node status-green" data-type="AntiBotNode">
+            <div class="node-header bg-dark">
+                <div class="port in-port" data-port="in"></div>
+                Anti-Bot Filter
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <p style="font-size: 0.8rem; color: #666; text-align: center;">Blocks scrapers/crawlers</p>
+            </div>
+        </div>
+
+        <div class="node ratelimit-node status-green" data-type="RateLimitNode">
+            <div class="node-header bg-dark">
+                <div class="port in-port" data-port="in"></div>
+                Rate Limiter
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <p style="font-size: 0.8rem; color: #666; text-align: center;">Prevents spam / DDoS</p>
+            </div>
+        </div>
+
+        <div class="node csrf-node status-green" data-type="CSRFNode">
+            <div class="node-header bg-dark">
+                <div class="port in-port" data-port="in"></div>
+                CSRF Shield
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <p style="font-size: 0.8rem; color: #666; text-align: center;">Validates POST token</p>
+            </div>
+        </div>
+
+        <div class="node screen-node status-green" data-type="ScreenProtectionNode">
+            <div class="node-header bg-dark">
+                <div class="port in-port" data-port="in"></div>
+                Screen Protection
+                <div class="port out-port" data-port="out"></div>
+            </div>
+            <div class="node-body">
+                <p style="font-size: 0.8rem; color: #666; text-align: center;">Blocks screenshots/copy</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Click Menu (Optional Future Use) -->
+    <div id="context-menu" class="hidden">
+        <div class="menu-item" id="delete-node">Delete Node</div>
+    </div>
+
+    <script src="canvas.js"></script>
+</body>
+
+</html>

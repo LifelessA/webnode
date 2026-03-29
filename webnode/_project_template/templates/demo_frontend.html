@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Python Frontend Architecture Demo</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; background: #0f172a; color: white; text-align: center; }
+        .box { background: #1e293b; padding: 30px; border-radius: 12px; max-width: 500px; margin: 0 auto; }
+        button { background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin: 10px; font-size: 1rem; }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Python-First Framework 🐍</h2>
+        <p id="demo-text">This text is waiting to be changed by Python...</p>
+        
+        <!-- Call functions from static/frontend_logic.py -->
+        <button py-click="change_text">Click to Update Text</button>
+        <button py-click="show_alert">Show JavaScript Alert via Python</button>
+    </div>
+
+    <!-- 
+       IMPORT YOUR STATIC PYTHON FILE EXACTLY LIKE JAVASCRIPT
+       Framework will Auto-Inject PyScript engine automatically! 
+    -->
+    <script type="py" src="/static/frontend_logic.py"></script>
+    
+</body>
+</html>

@@ -1,0 +1,85 @@
+{% extends "base_shop.html" %}
+{% block title %}Shop All Products{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-eyebrow">🛍️ Free shipping on orders over $50</div>
+        <h1>Discover Premium<br>Products</h1>
+        <p>Curated collection of cutting-edge electronics, fashion, and lifestyle products delivered to your door.</p>
+        <div class="hero-actions">
+            <a href="#products" class="btn btn-primary btn-lg" id="btn-shop-now">Shop Now ↓</a>
+            <a href="/cart" class="btn btn-outline btn-lg" id="btn-view-cart-hero">View Cart</a>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-num">{{ product_count }}</div>
+            <div class="stat-label">Products Available</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num">4.9★</div>
+            <div class="stat-label">Average Rating</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num">24h</div>
+            <div class="stat-label">Fast Delivery</div>
+        </div>
+    </div>
+
+    <!-- Category Filters -->
+    <div class="categories" id="category-filters">
+        <a href="/shop" class="cat-pill {% if not current_category %}active{% endif %}" id="cat-all">All</a>
+        <a href="/shop?cat=Electronics" class="cat-pill {% if current_category == 'Electronics' %}active{% endif %}" id="cat-electronics">Electronics</a>
+        <a href="/shop?cat=Footwear" class="cat-pill {% if current_category == 'Footwear' %}active{% endif %}" id="cat-footwear">Footwear</a>
+        <a href="/shop?cat=Bags" class="cat-pill {% if current_category == 'Bags' %}active{% endif %}" id="cat-bags">Bags</a>
+        <a href="/shop?cat=Travel" class="cat-pill {% if current_category == 'Travel' %}active{% endif %}" id="cat-travel">Travel</a>
+        <a href="/shop?cat=Kitchen" class="cat-pill {% if current_category == 'Kitchen' %}active{% endif %}" id="cat-kitchen">Kitchen</a>
+    </div>
+
+    <!-- Products Grid -->
+    <section id="products">
+        <h2 class="section-title">Featured Products</h2>
+        <p class="section-subtitle">Handpicked for quality, style and value</p>
+
+        {% if products %}
+        <div class="products-grid" id="products-grid">
+            {% for p in products %}
+            <a href="/product/{{ p['id'] }}" class="product-card" id="product-card-{{ p['id'] }}">
+                <div class="product-card-img">
+                    <span class="product-badge">{{ p['category'] }}</span>
+                    <img src="{{ p['image_url'] }}" alt="{{ p['name'] }}" onerror="this.style.display='none';this.parentNode.innerHTML+='<span style=\'font-size:3.5rem\'>🛒</span>'">
+                </div>
+                <div class="product-card-body">
+                    <div class="product-cat">{{ p['category'] }}</div>
+                    <div class="product-name">{{ p['name'] }}</div>
+                    <div class="product-desc">{{ p['description'] }}</div>
+                    <div class="product-footer">
+                        <div class="product-price"><span class="currency">$</span>{{ p['price'] }}</div>
+                        <form action="/cart/add_from_shop" method="POST" style="margin:0; padding:0; display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="product_id" value="{{ p['id'] }}">
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="btn-add" style="border:none; font-family:inherit; font-size:inherit;">+ Add</button>
+                        </form>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <h2>No products found</h2>
+            <p>Try a different category filter</p>
+            <a href="/shop" class="btn btn-primary" id="btn-clear-filter">Clear Filter</a>
+        </div>
+        {% endif %}
+    </section>
+
+</div>
+{% endblock %}

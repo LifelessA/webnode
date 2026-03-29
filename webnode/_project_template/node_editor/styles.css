@@ -1,0 +1,397 @@
+:root {
+    --bg-dark: #1e1e1e;
+    --bg-panel: #2d2d2d;
+    --border-color: #3e3e42;
+    --text-main: #d4d4d4;
+    --text-muted: #858585;
+    --accent: #007acc;
+
+    /* Status Colors based on user image */
+    --status-green: #10b981;
+    /* Emerald */
+    --status-red: #ef4444;
+    /* Red */
+    --port-color: #000000;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Toolbar */
+#toolbar {
+    height: 50px;
+    background-color: var(--bg-panel);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 10;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.controls button {
+    background-color: #3c3c3c;
+    color: white;
+    border: 1px solid #555;
+    padding: 6px 12px;
+    margin-right: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.controls button:hover {
+    background-color: #505050;
+}
+
+.btn-primary {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+.btn-primary:hover {
+    background-color: #005f9e !important;
+}
+
+.btn-danger {
+    background-color: #b91c1c !important;
+    border-color: #991b1b !important;
+}
+
+#status-indicator {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+#status-indicator.live {
+    color: var(--status-green);
+}
+
+/* Workspace */
+#workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar */
+#sidebar {
+    width: 250px;
+    background-color: var(--bg-panel);
+    border-right: 1px solid var(--border-color);
+    padding: 15px;
+    overflow-y: auto;
+    z-index: 5;
+}
+
+#sidebar h3 {
+    font-size: 1rem;
+    margin-bottom: 15px;
+    color: white;
+}
+
+.category {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 15px 0 5px 0;
+    letter-spacing: 0.05em;
+}
+
+.palette-node {
+    background-color: #3b3b3b;
+    border: 1px solid #555;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    cursor: grab;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.palette-node:hover {
+    background-color: #4a4a4a;
+    border-color: #666;
+}
+
+/* Canvas */
+#canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    cursor: grab;
+}
+
+#canvas-container:active {
+    cursor: grabbing;
+}
+
+#wire-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.wire {
+    fill: none;
+    stroke: #888;
+    stroke-width: 4;
+    transition: stroke 0.3s;
+    pointer-events: stroke;
+    cursor: pointer;
+}
+
+.wire:hover {
+    stroke: #b91c1c;
+}
+
+.wire.active {
+    stroke: var(--accent);
+}
+
+.wire.error {
+    stroke: var(--status-red);
+    stroke-dasharray: 5, 5;
+    animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+    to {
+        stroke-dashoffset: -10;
+    }
+}
+
+#canvas-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    transform-origin: 0 0;
+}
+
+/* Nodes */
+.node {
+    position: absolute;
+    width: 280px;
+    background-color: white;
+    border: 5px solid var(--border-color);
+    border-radius: 4px;
+    color: black;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    cursor: default;
+    user-select: none;
+}
+
+/* Status Borders (Green/Red) */
+.node.status-green {
+    border-color: var(--status-green);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+}
+
+.node.status-red {
+    border-color: var(--status-red);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+}
+
+/* Runtime Node Error — pulsing red glow (overrides status-green) */
+.node.status-error {
+    border-color: #f43f5e !important;
+    box-shadow: 0 0 0 3px #f43f5e, 0 0 24px rgba(244, 63, 94, 0.8) !important;
+    animation: node-error-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes node-error-pulse {
+    0% {
+        box-shadow: 0 0 0 3px #f43f5e, 0 0 20px rgba(244, 63, 94, 0.7);
+    }
+
+    50% {
+        box-shadow: 0 0 0 5px #f43f5e, 0 0 36px rgba(244, 63, 94, 1.0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 3px #f43f5e, 0 0 20px rgba(244, 63, 94, 0.7);
+    }
+}
+
+
+.node-header {
+    background-color: transparent;
+    padding: 10px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 2px solid black;
+    cursor: grab;
+    position: relative;
+}
+
+.node-header:active {
+    cursor: grabbing;
+}
+
+.node-body {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.node-body label {
+    font-size: 0.8rem;
+    color: #444;
+}
+
+.node-input {
+    padding: 6px;
+    border: 1px solid black;
+    border-radius: 2px;
+    font-family: monospace;
+    width: 100%;
+}
+
+.node-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 5px;
+}
+
+.node-btn {
+    background: white;
+    border: 1px solid black;
+    border-radius: 12px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.node-btn:hover {
+    background: #eee;
+}
+
+/* Ports */
+.port {
+    width: 14px;
+    height: 14px;
+    background-color: white;
+    border: 4px solid var(--port-color);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: crosshair;
+    z-index: 10;
+}
+
+.port:hover {
+    transform: translateY(-50%) scale(1.2);
+}
+
+.in-port {
+    left: -9px;
+}
+
+.out-port {
+    right: -9px;
+}
+
+/* Monaco Container inside Logic Node */
+.monaco-container {
+    height: 150px;
+    width: 100%;
+    border: 1px solid #ccc;
+    margin-top: 5px;
+}
+
+/* ── Node Delete Button (X) ─────────────────────────── */
+.node-delete-btn {
+    position: absolute;
+    top: -11px;
+    right: -11px;
+    width: 22px;
+    height: 22px;
+    background: #f43f5e;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    display: none;
+    /* hidden by default */
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    transition: transform 0.15s, background 0.15s;
+    user-select: none;
+}
+
+.node:hover .node-delete-btn {
+    display: flex;
+    /* show on node hover */
+}
+
+.node-delete-btn:hover {
+    background: #be123c;
+    transform: scale(1.2);
+}
+
+/* ── Wire Disconnect Button (−) ─────────────────────── */
+#wire-disconnect-btn {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: #ef4444;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    transform: translate(-50%, -50%);
+    pointer-events: all;
+    transition: transform 0.15s, background 0.15s;
+    user-select: none;
+}
+
+#wire-disconnect-btn:hover {
+    background: #b91c1c;
+    transform: translate(-50%, -50%) scale(1.25);
+}

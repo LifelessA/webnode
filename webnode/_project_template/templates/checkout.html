@@ -1,0 +1,138 @@
+{% extends "base_shop.html" %}
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <div class="page-header">
+        <h1 class="page-title">💳 Checkout</h1>
+        <div class="breadcrumb">
+            <a href="/">Home</a> › <a href="/cart">Cart</a> › Checkout
+        </div>
+    </div>
+
+    {% if flash_error %}
+    <div class="flash error" id="flash-error">❌ {{ flash_error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/checkout/place" id="checkout-form">
+        <!-- CSRF Token (hidden, auto-injected) -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="checkout-grid">
+
+            <!-- Left: Form Sections -->
+            <div id="checkout-left">
+
+                <!-- Shipping Details -->
+                <div class="form-section" id="section-shipping">
+                    <div class="form-section-title">📦 Shipping Information</div>
+
+                    <div class="form-row cols-2">
+                        <div class="form-group">
+                            <label class="form-label" for="field-name">Full Name *</label>
+                            <input type="text" name="name" id="field-name" class="form-control"
+                                   placeholder="John Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="field-phone">Phone Number</label>
+                            <input type="tel" name="phone" id="field-phone" class="form-control"
+                                   placeholder="+1 (555) 000-0000">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="field-email">Email Address *</label>
+                            <input type="email" name="email" id="field-email" class="form-control"
+                                   placeholder="john@example.com" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="field-address">Full Address *</label>
+                            <input type="text" name="address" id="field-address" class="form-control"
+                                   placeholder="123 Main St, City, State, ZIP" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment (Dummy) -->
+                <div class="form-section" id="section-payment">
+                    <div class="form-section-title">💳 Payment Details <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;">(Demo — not real)</span></div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="field-card">Card Number</label>
+                            <input type="text" id="field-card" class="form-control"
+                                   placeholder="4242 4242 4242 4242" maxlength="19">
+                        </div>
+                    </div>
+
+                    <div class="form-row cols-2">
+                        <div class="form-group">
+                            <label class="form-label" for="field-expiry">Expiry Date</label>
+                            <input type="text" id="field-expiry" class="form-control"
+                                   placeholder="MM/YY" maxlength="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="field-cvv">CVV</label>
+                            <input type="text" id="field-cvv" class="form-control"
+                                   placeholder="123" maxlength="3">
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:#fcd34d;margin-top:0.5rem;">
+                        ⚠️ This is a <strong>demo store</strong>. No real payment is processed. Use any test card number.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right: Summary -->
+            <div id="checkout-right">
+                <div class="order-summary" id="checkout-summary">
+                    <div class="summary-title">🧾 Order Summary</div>
+
+                    {% for item in cart_items %}
+                    <div class="summary-row" id="summary-item-{{ item['cart_id'] }}">
+                        <span>{{ item['name'] }} ×{{ item['quantity'] }}</span>
+                        <span>${{ item['subtotal'] }}</span>
+                    </div>
+                    {% endfor %}
+
+                    <div class="summary-row" style="margin-top:0.75rem;">
+                        <span>Subtotal</span>
+                        <span>${{ subtotal }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Shipping</span>
+                        <span>{% if subtotal_raw >= 50.0 %}Free{% else %}$5.99{% endif %}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax (8%)</span>
+                        <span>${{ tax }}</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total</span>
+                        <span class="amt">${{ total }}</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-full btn-lg" id="btn-place-order" style="margin-top:1.25rem;">
+                        ✅ Place Order
+                    </button>
+
+                    <div style="margin-top:1rem;text-align:center;font-size:0.78rem;color:var(--text-muted);">
+                        🔒 CSRF Protected · SSL Secured · Privacy Guaranteed
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </form>
+
+</div>
+{% endblock %}
+
+{% endblock %}
