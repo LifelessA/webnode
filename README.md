@@ -1,4 +1,4 @@
-# WebNode Framework (v0.4.0) — The AI-Friendly Documentation
+# WebNode Framework (v0.4.0) — The AI-Friendly Framework
 
 Welcome to **WebNode**, a lightweight, high-performance, graph-based Python web framework. WebNode abandons traditional decorators (like Flask or Django) in favor of a **Node Graph Architecture**. In WebNode, every phase of an HTTP request is a "Node", and you wire these nodes together to create a flowchart of data.
 
