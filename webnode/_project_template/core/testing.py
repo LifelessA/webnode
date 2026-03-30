@@ -1,11 +1,11 @@
 """
 core/testing.py — Node Testing Framework
 
-Har node ko ALAG se test karo bina poora server chalaye.
+Test every node ISOLATED without running the entire server.
 
 AI-Friendly Design:
-  - AI ek node ka test likh sakta hai without knowing other nodes
-  - MockRequest banao, node mein daalo, output check karo
+  - AI can write a test for one node without knowing other nodes
+  - Build a MockRequest, pass it to the node, and check the output
   - Clear pass/fail output with node name
 
 Usage:

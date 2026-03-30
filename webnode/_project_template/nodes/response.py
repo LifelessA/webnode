@@ -1,7 +1,7 @@
 """
 nodes/response.py — Node Response Object
 
-Har node ab plain string ki jagah Response return kar sakta hai.
+Each node can now return a Response object instead of a plain string.
 Isse status code, content-type, aur custom headers control mein aate hain.
 
 Usage examples:

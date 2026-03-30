@@ -36,9 +36,11 @@ pip install git+https://github.com/LifelessA/webnode.git
 Use the CLI command to generate a new project structure:
 
 ```bash
-# This will copy the full v0.4.0 template architecture
+# If your Python Scripts folder is in PATH:
 node-web startproject my_website
-cd my_website
+
+# Alternative (If 'node-web' command is not found):
+python -m webnode.cli startproject my_website
 ```
 
 ### 2. Initialize the Database and Keys

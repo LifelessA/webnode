@@ -340,18 +340,18 @@ def node_logic(request):
     from nodes.response import StreamingResponse
 
     def live_clock():
-        # Ye loop lagatar chalta rahega jab tak user page open rakhega
+        # This loop runs continuously as long as the user keeps the page open
         while True:
-            # Current time nikal kar format karein (Hours:Minutes:Seconds)
+            # Extract and format current time (Hours:Minutes:Seconds)
             current_time = datetime.now().strftime("%H:%M:%S")
             
-            # HTML span bhej kar time dikhayein
+            # Send HTML span to display time
             yield f"<span style='font-family: monospace; font-size: 2rem; color: #10b981; font-weight: bold;'>{current_time}</span>"
             
-            # Har naya time bhejne ke baad 1 second hold karein
+            # Yield new time, then sleep for 1 second
             time.sleep(1)
             
-    # 'result' key mein stream ko bhej dein taaki template {{ result | safe }} usko catch karle
+    # Pass the stream in the 'result' key so the template can render it manually with {{ result | safe }}
     return {"result": StreamingResponse(live_clock())}
 
             

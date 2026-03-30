@@ -1,16 +1,16 @@
 """
 core/errors.py — Node Error Reporting System
 
-Jab koi bhi node fail hota hai, yeh module clearly batata hai:
-  - Konsa node crash hua
-  - Kya input tha
-  - Kya error tha (readable)
-  - Kahan fix karna hai
+When any node fails, this module clearly states:
+  - Which node crashed
+  - What was the input
+  - What was the error (readable)
+  - Where to fix it
 
 AI-Friendly Design:
-  - Structured JSON format — AI directly parse kar sakta hai
+  - Structured JSON format — AI can directly parse it
   - No ambiguous stack traces — pinpointed node name
-  - Context preserved — request path + method bhi log hota hai
+  - Context preserved — request path + method is also logged
 """
 import traceback
 import datetime

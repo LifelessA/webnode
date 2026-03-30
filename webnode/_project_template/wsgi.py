@@ -2,7 +2,7 @@
 wsgi.py — Node Framework WSGI Adapter
 
 WSGI = Web Server Gateway Interface
-Isse framework Gunicorn, uWSGI, Apache, Nginx ke saath chal sakta hai.
+This allows the framework to run with Gunicorn, uWSGI, Apache, or Nginx.
 
 Usage (Production):
     gunicorn wsgi:application --workers 4 --bind 0.0.0.0:8000
@@ -11,8 +11,8 @@ Usage (Dev, same as before):
     python main.py
 
 How it works:
-    WSGI standard ek function chahta hai: application(environ, start_response)
-    Ye module main.py ka ServerNode graph lete hai aur us pe WSGI wrapper lagata hai.
+    WSGI standard requires a callable: application(environ, start_response)
+    This module takes the ServerNode graph from main.py and applies a WSGI wrapper to it.
 
 Full deployment example (Windows/Linux):
     pip install gunicorn

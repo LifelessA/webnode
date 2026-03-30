@@ -1,23 +1,23 @@
 """
 core/ai_graph.py — AI-Readable Graph Format
 
-Ye module graph.json ko ek clear, structured format mein export karta hai
-jisse AI agents (GPT, Claude, Gemini) directly padhh ke samjhein:
-  - Konsa node konse se connected hai
-  - Har node ki responsibility kya hai
-  - Request kahan se aati hai, kahan jaati hai
-  - Agar error ho, kahan fix karna hai
+This module exports graph.json into a clear, structured JSON format
+so that AI agents (GPT, Claude, Gemini) can directly read and understand:
+  - Which node is connected to which
+  - The responsibility of each node
+  - Request flow (where it comes from, where it goes)
+  - Where to apply fixes in the event of an error
 
 Usage:
     from core.ai_graph import GraphReader, GraphSummary
 
-    # node_editor/graph.json se load karo
+    # Read from node_editor/graph.json
     reader  = GraphReader.from_file('node_editor/graph.json')
     summary = reader.to_ai_summary()
     print(summary)        # Human-readable
     print(reader.to_json())  # Machine-readable for AI
 
-    # Live running nodes se bhi describe kar sako
+    # Explain structure from live running nodes as well
     from core.ai_graph import describe_live_graph
     describe_live_graph(server_node)   # prints chain
 """
