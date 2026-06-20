@@ -78,6 +78,8 @@ python node_editor/node_backend.py
 ```
 Open your browser at **http://localhost:8080**.
 
+![Node Editor GUI](docs/images/node_editor.png)
+
 **Features:**
 *   **Drag & Drop**: Drag URL routers, Logic nodes, Python compilers, and HTML renderers from the sidebar Library panel onto a canvas.
 *   **Connect Nodes**: Draw connection lines between nodes (`▶` to `●`) to dictate data flow.
@@ -94,6 +96,8 @@ A next-generation AI assistant interface that can build your nodes automatically
 python ai_editor/ai_backend.py
 ```
 Open your browser at **http://localhost:8081**.
+
+![AI Editor GUI](docs/images/ai_editor.png)
 
 **Features:**
 *   **Natural Language to Graph**: Tell the AI to "Build a login page" and watch as it spawns a URLNode, LogicNode (with Python code), and RenderNode (with HTML) and auto-connects them.
