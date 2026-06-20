@@ -1,5 +1,5 @@
 """
-plugins/security.py — Node Framework Security Nodes
+plugins/security.py — Gravity-Flow Framework Security Nodes
 
 RateLimitNode       : Block IPs exceeding request rate limits.
 CSRFNode            : Per-session CSRF token validation (real tokens, not hardcoded).
@@ -131,39 +131,66 @@ class RateLimitNode(BaseNode):
 
 class CSRFNode(BaseNode):
     """
-    Per-session CSRF protection (Fixed Memory Leak).
+    Per-session CSRF protection (SQLite).
     """
 
-    _token_store = {}
     _lock = threading.RLock()
     TOKEN_EXPIRY = 3600
 
     @classmethod
-    def _cleanup_expired(cls):
-        # Called while _lock is held
-        now = time.time()
-        expired = [
-            ip for ip, data in cls._token_store.items()
-            if now - data['created'] > cls.TOKEN_EXPIRY
-        ]
-        for ip in expired:
-            del cls._token_store[ip]
+    def DB_PATH(cls):
+        import settings
+        import os
+        return os.path.join(settings.BASE_DIR, 'sessions.db')
+
+    @classmethod
+    def _init_csrf_db(cls):
+        import sqlite3
+        conn = sqlite3.connect(cls.DB_PATH())
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS csrf_tokens (
+                client_ip  TEXT PRIMARY KEY,
+                token      TEXT NOT NULL,
+                created_at REAL NOT NULL
+            )
+        """)
+        conn.commit()
+        conn.close()
 
     @classmethod
     def get_or_create_token(cls, client_ip):
+        import sqlite3
         with cls._lock:
-            cls._cleanup_expired()
-            now = time.time()
-            existing = cls._token_store.get(client_ip)
-            if existing and now - existing['created'] < cls.TOKEN_EXPIRY:
-                return existing['token']
-            
-            token = secrets.token_hex(32)
-            cls._token_store[client_ip] = {
-                'token': token,
-                'created': now
-            }
-            return token
+            conn = sqlite3.connect(cls.DB_PATH())
+            try:
+                now = time.time()
+                # DELETE expired
+                conn.execute(
+                    "DELETE FROM csrf_tokens WHERE created_at < ?",
+                    (now - cls.TOKEN_EXPIRY,)
+                )
+                conn.commit()
+
+                # SELECT
+                row = conn.execute(
+                    "SELECT token FROM csrf_tokens WHERE client_ip = ?",
+                    (client_ip,)
+                ).fetchone()
+
+                if row:
+                    return row[0]
+
+                # INSERT
+                token = secrets.token_hex(32)
+                conn.execute(
+                    "INSERT OR REPLACE INTO csrf_tokens (client_ip, token, created_at) VALUES (?, ?, ?)",
+                    (client_ip, token, now)
+                )
+                conn.commit()
+                return token
+            finally:
+                conn.close()
 
     def process(self, request):
         request = _ensure_request_wrapper(request)
@@ -207,6 +234,9 @@ class CSRFNode(BaseNode):
 
         else:
             return super().process(request)
+
+# Initialize DB table for CSRF
+CSRFNode._init_csrf_db()
 
 
 # ---------------------------------------------------------------------------

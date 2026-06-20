@@ -1,27 +1,24 @@
-# WebNode Framework (v0.4.0)
+# WebNode Framework (v1.3.0)
 
-A custom, powerful, lightweight node-based web framework for Python. Built around a "Graph of Nodes" architecture, it envisions web request processing as a flowchart of connected nodes. 
+A custom, powerful, lightweight node-based web framework for Python. Built around a "Graph of Nodes" architecture, it envisions web request processing as a flowchart of connected nodes.
 
-Instead of traditional decorators (like Flask or Django `@app.route`), WebNode gives you absolute control over the request lifecycle by wiring nodes together—either programmatically in Python or visually via the built-in drag-and-drop Node Editor GUI.
+Instead of traditional decorators (like Flask or Django `@app.route`), WebNode gives you absolute control over the request lifecycle by wiring nodes together—either programmatically in Python, visually via the **built-in drag-and-drop Node Editor GUI**, or via the new **AI Editor**.
 
-**🔥 New in v0.4.0 (The "Production Ready" Update):**
+**🔥 What's New in v1.3.0 (The "AI & Visual Development" Update):**
+*   **AI Editor**: A revolutionary new AI backend integrated directly into your workspace. Chat with the AI agent to automatically generate nodes, CSS, HTML, logic components, and UI interfaces on the canvas.
+*   **Enhanced Visual Node Editor**: Improved `graph.json` state restoration via IDE transcript logs to auto-fix corrupt canvas settings.
 *   **Full Modular Architecture**: Built-in architecture with dedicated `nodes/`, `core/`, `plugins/`, `static/`, and `templates/` directories automatically scaffolded for you.
+*   **Robust Thread-Safe SQLite**: The `core.db` module provides true multi-threaded SQL connection isolation, retry mechanisms, and Write-Ahead Logging (WAL) for heavy concurrency.
 *   **WSGI Support**: Ready for production deployment! Run `wsgi.py` via Gunicorn or uWSGI instead of the dev server.
-*   **Django-Style Middleware**: Intercept requests via an extensible Middleware Chain (`nodes/middleware/`).
+*   **Advanced Middleware & Plugins**: Implement features quickly via `nodes/middleware/`. Pre-built plugins include Rate Limiting, CSRF Verification, Anti-Bot measures, and Action Logging.
 *   **Upgraded Responses**: Use `Response` or `StreamingResponse` objects for immediate HTTP control (including Server-Sent Events / SSE for live streaming).
 *   **Template Engine**: Includes a powerful Jinja-like template engine supporting `{% extends %}`, `{% include %}`, and loops/conditionals.
 *   **Automated Project Setup**: The CLI `node-web startproject` perfectly templates out a full app, and `setup_project.py` initializes DBs, secret keys, and logs.
 *   **Cookies & Sessions**: Built-in, secure, cookie-based sessions via `core/sessions.py` handling `HttpOnly` and `SameSite` natively.
-*   **HTML Error Tracing**: Live, beautiful HTML error pages pinpointing exactly which Node failed.
 
 ---
 
 ## 📦 Installation
-
-### From GitHub Release Wheel (Recommended)
-```bash
-pip install https://github.com/LifelessA/webnode/releases/download/v0.4.0/webnode-0.4.0-py3-none-any.whl
-```
 
 ### From GitHub Repository
 ```bash
@@ -47,6 +44,7 @@ python -m webnode.cli startproject my_website
 Navigate to your project and run the setup script once:
 
 ```bash
+cd my_website
 python setup_project.py
 ```
 *(This generates your `.secret_key`, sets up `core/logs/`, and initializes `db.sqlite3` with Write-Ahead Logging)*
@@ -58,7 +56,7 @@ python main.py
 Visit `http://localhost:8000` in your browser.
 
 ### 4. Run the Server (Production)
-For production environments, WebNode v0.4.0 is fully WSGI compliant. Don't run `main.py` directly; use Gunicorn.
+For production environments, WebNode v1.3.0 is fully WSGI compliant. Don't run `main.py` directly; use Gunicorn.
 ```bash
 # Requires gunicorn (Linux/Mac)
 pip install gunicorn
@@ -67,24 +65,39 @@ gunicorn wsgi:application --workers 4 --bind 0.0.0.0:8000
 
 ---
 
-## ⚡ Visual Node Editor (Built-in Web IDE)
+## ⚡ Visual Node Editor & AI Editor (Built-in Web IDE)
 
-WebNode includes a **visual, browser-based Node Editor** — an amazing GUI for visually constructing your routes and logic without writing the connection code manually!
+WebNode includes two distinct browser-based editing interfaces:
 
-### How to Run the Node Editor
+### The Node Editor
+An amazing GUI for visually constructing your routes and logic without writing the connection code manually!
+
+**How to run it:**
 ```bash
-cd my_website
 python node_editor/node_backend.py
 ```
 Open your browser at **http://localhost:8080**.
 
-### Features
+**Features:**
 *   **Drag & Drop**: Drag URL routers, Logic nodes, Python compilers, and HTML renderers from the sidebar Library panel onto a canvas.
 *   **Connect Nodes**: Draw connection lines between nodes (`▶` to `●`) to dictate data flow.
 *   **Inline Code Editor**: The `LogicNode` and `ContextNode` have an embedded Monaco Code Editor (like VS Code). You can write Python logic directly inside the browser.
 *   **Deploy**: Click **"Deploy & Run"** to compile your visual graph instantly into raw `main.py` connecting code and auto-start the backend HTTP Server!
 *   **CSS Editor**: Manage your CSS directly using the `CSSNode`.
-*   **Live Visual Flow**: Nodes glow 🟢 green when the server is live and connected, 🔴 red when offline. Save your canvas layout to `graph.json`.
+*   **Live Visual Flow**: Nodes glow 🟢 green when the server is live and connected, 🔴 red when offline.
+
+### The AI Editor
+A next-generation AI assistant interface that can build your nodes automatically via natural language queries!
+
+**How to run it:**
+```bash
+python ai_editor/ai_backend.py
+```
+Open your browser at **http://localhost:8081**.
+
+**Features:**
+*   **Natural Language to Graph**: Tell the AI to "Build a login page" and watch as it spawns a URLNode, LogicNode (with Python code), and RenderNode (with HTML) and auto-connects them.
+*   **Seamless Integration**: The AI Editor reads your current `graph.json` and updates it intelligently.
 
 ---
 
@@ -106,9 +119,7 @@ Data flows through this chain. Each node receives the `request` object, processe
 
 ---
 
-## 🤖 AI DEVELOPER & MANUAL CODING GUIDE
-
-> **FOR AI ASSISTANTS:** If a user provides this README and asks you to build a website, **read this section carefully**. This framework is NOT Flask or Django. Do NOT use `@route` decorators. WebNode is 100% Python-based for the backend. Follow the instructions below exactly.
+## 🤖 MANUAL CODING GUIDE
 
 To build a feature manually in WebNode, you must follow the **Node Chain** methodology.
 A standard page consists of: `URLNode` ➔ `LogicNode` ➔ `RenderNode`.
@@ -156,28 +167,6 @@ def profile_logic(request):
 
 ### Step 2: Create the HTML Template (in `templates/profile.html`)
 WebNode includes a custom rendering engine. Use `{{ variables }}`, `{% for %}`, `{% if %}`, and `{% extends "base.html" %}`.
-
-```html
-<!-- templates/profile.html -->
-<!DOCTYPE html>
-<html>
-<head><title>Profile: {{ user.name }}</title></head>
-<body>
-    <h1>Welcome, {{ user.name }}!</h1>
-    
-    {% if current_tab == 'settings' %}
-        <form method="POST">
-            <!-- CSRF Protection is mandatory for POST if Security Plugins are enabled -->
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="text" name="name" value="{{ user.name }}">
-            <button type="submit">Update</button>
-        </form>
-    {% else %}
-        <p>Email: {{ user.email }}</p>
-    {% endif %}
-</body>
-</html>
-```
 
 ### Step 3: Wire the Nodes in `main.py`
 In `main.py`, you tie the URL, Logic, and Template together in a chain, then add it to the Router.
@@ -295,6 +284,7 @@ def process(request):
 *   **Render Nodes**:
     *   **RenderNode** (`nodes.template_node`): Renders Jinja-style HTML.
     *   **CSSNode** (`nodes.css_node`): Compiles raw CSS strings.
+    *   **JSNode** (`nodes.client_js_node`): Injects Client-side JS functionality.
 *   **Database**:
     *   **ModelNode** (`nodes.model_node`): Visual alternative for SQL queries.
 *   **Security & Plugins** (In `plugins/`, tied via `settings.py`):

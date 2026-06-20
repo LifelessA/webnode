@@ -64,8 +64,8 @@ body {
 }
 
 .btn-primary {
-    background-color: var(--accent) !important;
-    border-color: var(--accent) !important;
+    background-color: var(--accent);
+    border-color: var(--accent);
 }
 
 .btn-primary:hover {
@@ -73,8 +73,8 @@ body {
 }
 
 .btn-danger {
-    background-color: #b91c1c !important;
-    border-color: #991b1b !important;
+    background-color: #b91c1c;
+    border-color: #991b1b;
 }
 
 #status-indicator {
@@ -394,4 +394,174 @@ body {
 #wire-disconnect-btn:hover {
     background: #b91c1c;
     transform: translate(-50%, -50%) scale(1.25);
+}
+
+/* 3D Button UI (User Requested) */
+button {
+ position: relative;
+ border: none !important;
+ background: transparent !important;
+ padding: 0 !important;
+ cursor: pointer;
+ outline-offset: 4px;
+ transition: filter 250ms;
+ user-select: none;
+ touch-action: manipulation;
+}
+
+.shadow {
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ border-radius: 12px;
+ background: hsl(0deg 0% 0% / 0.25);
+ will-change: transform;
+ transform: translateY(2px);
+ transition: transform
+    600ms
+    cubic-bezier(.3, .7, .4, 1);
+}
+
+.edge {
+   position: absolute;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   border-radius: 12px;
+   background: var(--btn-edge, linear-gradient(to left, hsl(340deg 100% 16%) 0%, hsl(340deg 100% 32%) 8%, hsl(340deg 100% 32%) 92%, hsl(340deg 100% 16%) 100%));
+  }
+
+.front {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ position: relative;
+ padding: 8px 16px;
+ border-radius: 12px;
+ font-size: 1rem;
+ color: white;
+ background: var(--btn-bg, hsl(345deg 100% 47%));
+ will-change: transform;
+ transform: translateY(-4px);
+ transition: transform
+    600ms
+    cubic-bezier(.3, .7, .4, 1);
+ width: 100%;
+ height: 100%;
+ box-sizing: border-box;
+}
+
+button:hover {
+ filter: brightness(110%);
+}
+
+button:hover .front {
+ transform: translateY(-6px);
+ transition: transform
+    250ms
+    cubic-bezier(.3, .7, .4, 1.5);
+}
+
+button:active .front {
+ transform: translateY(-2px);
+ transition: transform 34ms;
+}
+
+button:hover .shadow {
+ transform: translateY(4px);
+ transition: transform
+    250ms
+    cubic-bezier(.3, .7, .4, 1.5);
+}
+
+button:active .shadow {
+ transform: translateY(1px);
+ transition: transform 34ms;
+}
+
+button:focus:not(:focus-visible) {
+ outline: none;
+}
+
+
+/* Auto-color overrides for 3D buttons */
+
+/* Base reset for ALL buttons so the original background doesn't peek out */
+button, .controls button, .node-actions button, button[style] {
+   background: transparent !important;
+   background-color: transparent !important;
+   border: none !important;
+}
+
+button.btn-primary, .controls button.btn-primary, .node-actions button.btn-primary, #btn-deploy, #ai-generate-btn {
+  --btn-bg: #007acc;
+  --btn-edge: linear-gradient(to left, #004d80 0%, #006bb3 8%, #006bb3 92%, #004d80 100%);
+}
+
+button.btn-danger, .controls button.btn-danger, .node-actions button.btn-danger, #btn-stop, #btn-reset-db {
+  --btn-bg: #b91c1c;
+  --btn-edge: linear-gradient(to left, #7f1d1d 0%, #991b1b 8%, #991b1b 92%, #7f1d1d 100%);
+}
+
+button.btn-secondary, .controls button.btn-secondary, .node-actions button.btn-secondary, .controls button {
+  --btn-bg: #555555;
+  --btn-edge: linear-gradient(to left, #333 0%, #444 8%, #444 92%, #333 100%);
+}
+
+button.node-btn, .node-actions button.node-btn, #btn-seed-generate {
+  --btn-bg: #10b981;
+  --btn-edge: linear-gradient(to left, #065f46 0%, #047857 8%, #047857 92%, #065f46 100%);
+}
+
+button.node-delete-btn, .node-actions button.node-delete-btn {
+  --btn-bg: #ef4444;
+  --btn-edge: linear-gradient(to left, #7f1d1d 0%, #dc2626 8%, #dc2626 92%, #7f1d1d 100%);
+}
+
+.node-btn .front, .node-delete-btn .front, #wire-disconnect-btn .front {
+    padding: 2px 6px !important;
+    font-size: 0.8rem !important;
+}
+.controls button .front {
+    padding: 6px 12px !important;
+}
+
+/* --- Palette Node Text Animation --- */
+.palette-text-wrapper {
+  --border-right: 4px;
+  --text-stroke-color: rgba(255,255,255,0.4);
+  --animation-color: #37FF8B;
+  letter-spacing: 2px;
+  position: relative;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--text-stroke-color);
+  display: inline-block;
+  font-weight: bold;
+}
+.actual-text {
+  visibility: visible; /* taking up space */
+}
+.hover-text {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--animation-color);
+  width: 0%;
+  inset: 0;
+  border-right: var(--border-right) solid var(--animation-color);
+  overflow: hidden;
+  transition: width 0.4s ease-out;
+  -webkit-text-stroke: 1px var(--animation-color); /* fill it fully */
+  white-space: nowrap;
+}
+.palette-node:hover .hover-text {
+  width: 100%;
+  filter: drop-shadow(0 0 10px var(--animation-color));
+}
+/* override original font-size to let the animation pop */
+.palette-node {
+    font-size: 0.85rem !important;
 }

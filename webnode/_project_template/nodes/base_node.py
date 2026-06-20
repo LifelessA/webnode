@@ -4,10 +4,10 @@ nodes/base_node.py — Node Framework
 BaseNode : Foundation class for ALL nodes.
 
 Key Design Principles (AI-Friendly Architecture):
-  1. Single Responsibility — each node does one thing
-  2. Chain Pattern       — nodes connect like a doubly linked list
-  3. Error Isolation     — if a node fails, it doesn't crash the entire flow
-  4. Named Nodes         — every node has a readable name (for debugging)
+  1. Single Responsibility — har node ek kaam karta hai
+  2. Chain Pattern       — nodes doubly linked list ki tarah connect hote hain
+  3. Error Isolation     — ek node fail ho to sirf wahi crash ho, baaki nahi
+  4. Named Nodes         — har node ka ek readable name hota hai (debug ke liye)
 
 Graph Flow:
   node_A.connect(node_B).connect(node_C)

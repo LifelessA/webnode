@@ -6,13 +6,42 @@ class ModelNode(BaseNode):
     Model Component of MVC.
     Interacts with the Database.
     """
-    def __init__(self, query, params_mapping=None, context_key='data', is_write=False):
+    def __init__(self, *args, **kwargs):
         super().__init__()
+        
+        # Flexible argument handling to support both ModelNode(db, query, ...) and ModelNode(query, ...)
+        remaining_args = list(args)
+        first_is_db = False
+        if remaining_args:
+            first_arg = remaining_args[0]
+            if hasattr(first_arg, 'execute') or hasattr(first_arg, 'fetchall') or type(first_arg).__name__ == 'Database':
+                first_is_db = True
+                
+        if first_is_db:
+            self.db = remaining_args.pop(0)
+        else:
+            self.db = Database()
+            
+        # Parse keyword arguments
+        query = kwargs.get('query')
+        params_mapping = kwargs.get('params_mapping') or kwargs.get('paramsMap') or kwargs.get('params_map')
+        context_key = kwargs.get('context_key', 'data')
+        is_write = kwargs.get('is_write', False)
+        
+        # Parse remaining positional arguments
+        if remaining_args:
+            query = remaining_args.pop(0)
+        if remaining_args:
+            params_mapping = remaining_args.pop(0)
+        if remaining_args:
+            context_key = remaining_args.pop(0)
+        if remaining_args:
+            is_write = remaining_args.pop(0)
+            
         self.query = query
-        self.params_mapping = params_mapping or [] # List of param keys to fetch from request
+        self.params_mapping = params_mapping or []
         self.context_key = context_key
         self.is_write = is_write
-        self.db = Database()
 
     def process(self, request):
         """

@@ -16,44 +16,71 @@ Usage:
 import secrets
 import time
 import threading
+import sqlite3
+import json
+import os
 
 # ---------------------------------------------------------------------------
-# Session Store
+# Session Store (SQLite)
 # ---------------------------------------------------------------------------
 
-SESSION_STORE = {}          # { session_id: { '_created': timestamp, ...data } }
-_lock = threading.RLock()  # Re-entrant — safe for nested acquisitions in same thread
+_lock = threading.RLock()  # Safe over-wrap for concurrent thread actions
 SESSION_EXPIRY = 86400      # 24 hours in seconds
 COOKIE_NAME = 'wn_session'
 
+def _get_db_path():
+    import settings
+    return os.path.join(settings.BASE_DIR, 'sessions.db')
+
+def _init_db():
+    conn = sqlite3.connect(_get_db_path())
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_id TEXT PRIMARY KEY,
+            data       TEXT NOT NULL DEFAULT '{}',
+            created_at REAL NOT NULL,
+            last_active REAL NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS 
+        idx_last_active 
+        ON sessions(last_active)
+    """)
+    conn.commit()
+    conn.close()
+
+_init_db()  # Initialize on import
 
 # ---------------------------------------------------------------------------
 # Internal Helpers
 # ---------------------------------------------------------------------------
 
 def _cleanup_expired():
-    """
-    Remove sessions older than SESSION_EXPIRY.
-    CONTRACT: Must be called while holding _lock (assumes lock is already acquired).
-    """
+    """Remove sessions older than SESSION_EXPIRY."""
     now = time.time()
-    expired = [
-        sid for sid, data in SESSION_STORE.items()
-        if now - data.get('_created', now) > SESSION_EXPIRY
-    ]
-    for sid in expired:
-        del SESSION_STORE[sid]
-
+    conn = sqlite3.connect(_get_db_path())
+    try:
+        conn.execute("DELETE FROM sessions WHERE last_active < ?", (now - SESSION_EXPIRY,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def _create_session():
-    """
-    Create a brand-new session and return its ID.
-    Called from within get_session_id() which already holds _lock.
-    Uses _lock via RLock re-entrancy — safe to call while lock is held.
-    """
+    """Create a new DB session and return ID."""
     session_id = secrets.token_urlsafe(32)
-    with _lock:  # RLock: safe even if caller already holds it
-        SESSION_STORE[session_id] = {'_created': time.time()}
+    now = time.time()
+    with _lock:
+        conn = sqlite3.connect(_get_db_path())
+        try:
+            conn.execute(
+                "INSERT INTO sessions (session_id, data, created_at, last_active) VALUES (?, ?, ?, ?)",
+                (session_id, '{}', now, now)
+            )
+            conn.commit()
+        finally:
+            conn.close()
     return session_id
 
 
@@ -81,10 +108,16 @@ def get_session_id(request) -> str:
 
     if existing_id:
         with _lock:
-            if existing_id in SESSION_STORE:
-                # Refresh the session timestamp (rolling expiry)
-                SESSION_STORE[existing_id]['_created'] = time.time()
-                return existing_id
+            conn = sqlite3.connect(_get_db_path())
+            try:
+                row = conn.execute("SELECT session_id FROM sessions WHERE session_id = ?", (existing_id,)).fetchone()
+                if row:
+                    # Session verified, update activity timestamp
+                    conn.execute("UPDATE sessions SET last_active = ? WHERE session_id = ?", (time.time(), existing_id))
+                    conn.commit()
+                    return existing_id
+            finally:
+                conn.close()
 
     # No valid session found → create a new one
     new_id = _create_session()
@@ -117,21 +150,48 @@ def set_session_cookie(response, session_id: str):
 
 
 def get_session_data(session_id: str) -> dict:
-    """Return the data dict for a session (excluding internal keys)."""
+    """Return the data dict for a session."""
     with _lock:
-        data = SESSION_STORE.get(session_id, {})
-        return {k: v for k, v in data.items() if not k.startswith('_')}
+        conn = sqlite3.connect(_get_db_path())
+        try:
+            row = conn.execute("SELECT data FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+            if row:
+                return json.loads(row[0])
+            return {}
+        finally:
+            conn.close()
 
 
 def set_session_data(session_id: str, key: str, value):
     """Store a key-value pair in the session."""
     with _lock:
-        if session_id not in SESSION_STORE:
-            SESSION_STORE[session_id] = {'_created': time.time()}
-        SESSION_STORE[session_id][key] = value
+        conn = sqlite3.connect(_get_db_path())
+        try:
+            now = time.time()
+            row = conn.execute("SELECT data, created_at FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+            if row:
+                data = json.loads(row[0])
+                created_at = row[1]
+            else:
+                data = {}
+                created_at = now
+            
+            data[key] = value
+            conn.execute(
+                "INSERT OR REPLACE INTO sessions (session_id, data, created_at, last_active) VALUES (?, ?, ?, ?)",
+                (session_id, json.dumps(data), created_at, now)
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def delete_session(session_id: str):
-    """Remove a session from the store (e.g. on logout)."""
+    """Remove a session from the store."""
     with _lock:
-        SESSION_STORE.pop(session_id, None)
+        conn = sqlite3.connect(_get_db_path())
+        try:
+            conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+            conn.commit()
+        finally:
+            conn.close()

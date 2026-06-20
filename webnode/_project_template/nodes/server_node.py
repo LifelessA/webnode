@@ -270,7 +270,8 @@ class FrameworkHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header(key, value)
         # Security headers (always applied)
         self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('X-Frame-Options', 'SAMEORIGIN')
+        if hasattr(settings, 'is_production') and settings.is_production():
+            self.send_header('X-Frame-Options', 'SAMEORIGIN')
         self.end_headers()
         self.wfile.write(body_bytes)
     def _handle_sse_stream(self):

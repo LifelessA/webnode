@@ -29,6 +29,7 @@ class Database:
         if cls._instance is None:
             cls._instance = super(Database, cls).__new__(cls)
             cls._instance.db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3')
+            cls._instance.setup_tables()
         return cls._instance
 
     # ------------------------------------------------------------------
@@ -40,18 +41,33 @@ class Database:
         Return this thread's persistent connection, creating it if needed.
         Configuration (WAL, foreign keys, row_factory) is applied ONCE.
         """
-        if not hasattr(self._local, 'conn') or self._local.conn is None:
-            conn = sqlite3.connect(
-                self.db_path,
-                check_same_thread=True,  # Safe: each thread has its own conn
-                timeout=30,
-            )
-            # Configure once per connection
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA foreign_keys=ON")
-            conn.row_factory = sqlite3.Row
-            self._local.conn = conn
-
+        # Check if connection exists AND is still alive
+        if hasattr(self._local, 'conn') and self._local.conn is not None:
+            # Verify connection is alive
+            try:
+                self._local.conn.execute("SELECT 1")
+                # Connection is good!
+                return self._local.conn
+            except Exception:
+                # Connection is stale/broken
+                # Close it safely
+                try:
+                    self._local.conn.close()
+                except Exception:
+                    pass
+                self._local.conn = None
+                # Fall through to create new
+                
+        # Create fresh connection
+        conn = sqlite3.connect(
+            self.db_path,
+            check_same_thread=True,
+            timeout=30,
+        )
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.row_factory = sqlite3.Row
+        self._local.conn = conn
         return self._local.conn
 
     def close_connection(self):
@@ -84,6 +100,24 @@ class Database:
             return cursor
         except Exception as e:
             conn.rollback()
+            
+            # Check if connection error
+            # If yes → retry ONCE with fresh connection
+            err_str = str(e).lower()
+            if any(x in err_str for x in ['closed', 'disk i/o', 'unable to open', 'locked']):
+                print(f"[DB] Connection error, reconnecting: {e}")
+                # Force new connection
+                self._local.conn = None
+                try:
+                    conn2 = self.get_connection()
+                    cursor2 = conn2.cursor()
+                    cursor2.execute(query, params)
+                    conn2.commit()
+                    return cursor2
+                except Exception as e2:
+                    print(f"[DB] Retry failed: {e2}")
+                    raise e2
+            
             print(f"Database Error: {e}")
             raise e
 
@@ -124,6 +158,20 @@ class Database:
             cursor.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
         except Exception as e:
+            # Same retry logic
+            err_str = str(e).lower()
+            if any(x in err_str for x in ['closed', 'disk i/o', 'unable to open', 'locked']):
+                print(f"[DB] Connection error, reconnecting: {e}")
+                self._local.conn = None
+                try:
+                    conn2 = self.get_connection()
+                    cursor2 = conn2.cursor()
+                    cursor2.execute(query, params)
+                    return [dict(row) for row in cursor2.fetchall()]
+                except Exception as e2:
+                    print(f"[DB] Retry failed: {e2}")
+                    return []
+            
             print(f"Database Error: {e}")
             return []
 
@@ -174,6 +222,12 @@ class Database:
             email TEXT UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             is_premium BOOLEAN DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS highscores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         '''
         self.executescript(create_schema)

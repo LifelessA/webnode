@@ -1,22 +1,12 @@
-# static/helpers.py
 from core.db import Database
-from core.sessions import get_session_id  # cookie-based session (replaces IP-based)
-from core.validators import (
-    validate_int,
-    validate_str,
-    validate_email,
-    validate_form,
-    safe_int,
-    safe_str,
-    ValidationError
-)
 
 db = Database()
 
-# get_session_id is re-exported here so all existing logic files can still do:
-#   from static.helpers import get_session_id, db, compute_cart_totals
-# without any changes.
-__all__ = ['db', 'get_session_id', 'compute_cart_totals']
+def get_session_id(request):
+    """Use client IP as session identifier."""
+    if hasattr(request, 'handler') and hasattr(request.handler, 'client_address'):
+        return f"sess_{request.handler.client_address[0].replace('.', '_')}"
+    return 'sess_default'
 
 def compute_cart_totals(cart_items):
     subtotal_raw = sum(item['price'] * item['quantity'] for item in cart_items)

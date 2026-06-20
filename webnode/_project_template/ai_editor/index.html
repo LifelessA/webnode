@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBERCORE AI — Matrix Builder</title>
+
+  <!-- Monaco Editor -->
+  <script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } };</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.nls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.js"></script>
+
+  <!-- Original node editor styles (keep intact) -->
+  <link rel="stylesheet" href="/node_editor/styles.css">
+  <!-- Redesigned UI styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Generation progress bar (animated) -->
+<div id="gen-progress-bar"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">CYBERCORE AI <span>MATRIX BUILDER</span></div>
+
+  <div class="header-controls">
+    <button class="control-btn btn-primary"     id="btn-deploy"      title="Deploy changes">🚀 Deploy</button>
+    <button class="control-btn btn-danger"       id="btn-stop"        title="Stop server">⬛ Stop</button>
+    <button class="control-btn btn-secondary"    id="btn-save"        title="Save graph.json">💾 Save</button>
+    <button class="control-btn btn-warning"      id="btn-clear"       title="Clear canvas">⌫ Clear</button>
+    <button class="control-btn btn-danger-glow"  id="btn-reset-graph" title="Reset graph.json from disk">↺ Reset</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <button class="settings-btn" id="btn-settings" onclick="openSettings()">⚙ Settings</button>
+    <div class="status-badge">
+      <span class="status-dot" id="status-indicator"></span>
+      <span id="status-text">Connected</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main 3-panel workspace -->
+<main>
+
+  <!-- LEFT: Chat Panel -->
+  <div class="panel" id="chat-panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="panel-title-dot"></span>
+        Prompt Chat
+        <button id="btn-new-chat" onclick="clearChat()" title="New conversation">＋ New</button>
+      </div>
+      <span id="active-model-display">OLLAMA</span>
+    </div>
+    <div id="chat-history">
+      <div class="message ai">
+        Ready. Describe the website or API you want to build — I'll architect the nodes, write the logic, and deploy a live preview.
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <textarea id="prompt-input" placeholder="e.g. Build a REST API with auth and a dashboard UI…"></textarea>
+      <button id="btn-send" onclick="sendPrompt()">↑</button>
+    </div>
+  </div>
+
+  <!-- MIDDLE: Node Canvas Panel -->
+  <div class="panel" id="canvas-panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="panel-title-dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></span>
+        Node Canvas
+      </div>
+      <span style="cursor:pointer;font-size:0.68rem;letter-spacing:0.5px;color:var(--text-3);font-family:var(--font-mono);text-transform:uppercase;" onclick="resetCanvas()">Clear ×</span>
+    </div>
+    <div id="canvas-container">
+      <svg id="wire-layer"></svg>
+      <div id="canvas-layer"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview Panel -->
+  <div class="panel" id="preview-panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="panel-title-dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></span>
+        Live Preview
+      </div>
+    </div>
+    <div class="preview-address-bar">
+      <button class="preview-btn" onclick="goHome()" title="Home">⌂</button>
+      <button class="preview-btn" onclick="reloadPreview()" title="Reload">↺</button>
+      <input type="text" class="address-bar-input" id="address-input" value="http://localhost:8000/" readonly>
+    </div>
+    <iframe id="preview-iframe" src="about:blank"></iframe>
+  </div>
+
+</main>
+
+<!-- Hidden node templates (unchanged) -->
+<div id="node-templates" style="display:none;">
+
+  <div class="node server-node status-red" data-type="ServerNode">
+    <div class="node-header">Server Node<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>IP Address</label><input type="text" value="127.0.0.1" class="node-input ip-input">
+      <label>Port</label><input type="number" value="8000" class="node-input port-input">
+      <div class="node-actions"><button class="node-btn">Live/Stop</button></div>
+    </div>
+  </div>
+
+  <div class="node http-node status-red" data-type="HTTPRequestsNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>HTTP Request<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body"><p style="font-size:0.8rem;color:#666;text-align:center;">Parses raw request</p></div>
+  </div>
+
+  <div class="node url-node status-red" data-type="URLNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>URL Router<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body"><label>Path</label><input type="text" value="/" class="node-input path-input"></div>
+  </div>
+
+  <div class="node logic-node status-red" data-type="LogicNode" style="width:400px;">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>Logic (Python)<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Function Logic (def node_logic(request):)</label>
+      <div class="monaco-container"></div>
+    </div>
+  </div>
+
+  <div class="node js-node status-red" data-type="JSNode" style="width:400px;">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>Logic (JS)<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Function Logic (function process_logic(request):)</label>
+      <div class="monaco-container"></div>
+      <div class="node-actions"><button class="node-btn js-save-btn">💾 Save JS Code</button></div>
+    </div>
+  </div>
+
+  <div class="node context-node status-red" data-type="ContextNode" style="width:400px;">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>Context Store<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Storage Logic</label>
+      <div class="monaco-container"></div>
+    </div>
+  </div>
+
+  <div class="node render-node status-red" data-type="RenderNode" style="width:400px;">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>HTML Render<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Filename</label><input type="text" value="index.html" class="node-input filename-input">
+      <label>HTML Template</label>
+      <div class="monaco-container"></div>
+    </div>
+  </div>
+
+  <div class="node css-node status-red" data-type="CSSNode" style="width:400px;">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>CSS Style<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>CSS Filename</label><input type="text" value="style.css" class="node-input css-filename-input">
+      <label>CSS Rules</label>
+      <div class="monaco-container"></div>
+    </div>
+  </div>
+
+  <div class="node model-node status-red" data-type="ModelNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>AI Model<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Query</label><input type="text" value="" class="node-input query-input">
+      <label>Params Map (JSON)</label><input type="text" value="{}" class="node-input params-input">
+      <label>Context Key</label><input type="text" value="" class="node-input context-input">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <label style="margin:0;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" class="is-write-input" style="width:auto;margin:0;">
+          Is Write Query
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="node json-node status-red" data-type="JSONNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>JSON Formatter<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body"><p style="font-size:0.8rem;color:#666;text-align:center;">Formats JSON output</p></div>
+  </div>
+
+  <div class="node auth-node status-red" data-type="AuthNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>Auth Guard<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Auth Type</label>
+      <select class="node-input auth-type-select">
+        <option value="bearer">Bearer Token</option>
+        <option value="basic">Basic Auth</option>
+        <option value="api_key">API Key</option>
+        <option value="none">None</option>
+      </select>
+      <label>Secret</label><input type="password" value="" class="node-input secret-input">
+    </div>
+  </div>
+
+  <div class="node db-node status-red" data-type="DatabaseNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>Database<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>DB Type</label>
+      <select class="node-input db-type-select">
+        <option value="sqlite">SQLite</option>
+        <option value="postgres">PostgreSQL</option>
+        <option value="mysql">MySQL</option>
+        <option value="mongodb">MongoDB</option>
+        <option value="redis">Redis</option>
+      </select>
+      <label>Connection / Path</label><input type="text" value="data.db" class="node-input db-conn-input">
+      <label>Query</label><input type="text" value="SELECT * FROM table" class="node-input db-query-input">
+    </div>
+  </div>
+
+  <div class="node file-node status-red" data-type="FileNode">
+    <div class="node-header"><div class="port in-port" data-port="in"></div>File I/O<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body">
+      <label>Operation</label>
+      <select class="node-input file-op-select">
+        <option value="read">Read</option>
+        <option value="write">Write</option>
+        <option value="append">Append</option>
+        <option value="delete">Delete</option>
+      </select>
+      <label>File Path</label><input type="text" value="" class="node-input file-path-input">
+    </div>
+  </div>
+
+  <div class="node screen-node status-green" data-type="ScreenProtectionNode">
+    <div class="node-header bg-dark"><div class="port in-port" data-port="in"></div>Screen Protection<div class="port out-port" data-port="out"></div></div>
+    <div class="node-body"><p style="font-size:0.8rem;color:#666;text-align:center;">Blocks screenshots/copy</p></div>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>⚙ AI Provider Settings</h3>
+      <button class="close-btn" onclick="closeSettings()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-group">
+        <label for="provider-select">Active AI Provider</label>
+        <select id="provider-select" onchange="toggleProviderFields()">
+          <option value="ollama">Ollama (Local)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="gpt">OpenAI GPT</option>
+          <option value="claude">Anthropic Claude</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="nvidia">Nvidia NIM</option>
+          <option value="glm">GLM (Zhipu AI)</option>
+          <option value="dough">Dough.id (Free API Gateway)</option>
+          <option value="custom">Custom Endpoint</option>
+        </select>
+      </div>
+      <hr class="modal-divider">
+      <div id="provider-keys-container">
+        <div class="provider-fields-group" data-provider="ollama">
+          <div class="setting-group"><label>Ollama API Endpoint</label><input type="text" id="endpoint-ollama" placeholder="http://localhost:11434/api/generate"></div>
+          <div class="setting-group"><label>Ollama Model Name</label><input type="text" id="model-ollama" placeholder="gemma4:26b"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="gemini">
+          <div class="setting-group"><label>Gemini API Key</label><input type="password" id="key-gemini" placeholder="AIzaSy…"></div>
+          <div class="setting-group"><label>Gemini Model Name</label><input type="text" id="model-gemini" placeholder="gemini-1.5-flash"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="gpt">
+          <div class="setting-group"><label>OpenAI API Key</label><input type="password" id="key-gpt" placeholder="sk-proj-…"></div>
+          <div class="setting-group"><label>OpenAI Model Name</label><input type="text" id="model-gpt" placeholder="gpt-4o-mini"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="claude">
+          <div class="setting-group"><label>Claude API Key</label><input type="password" id="key-claude" placeholder="sk-ant-…"></div>
+          <div class="setting-group"><label>Claude Model Name</label><input type="text" id="model-claude" placeholder="claude-3-5-sonnet-20241022"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="deepseek">
+          <div class="setting-group"><label>DeepSeek API Key</label><input type="password" id="key-deepseek" placeholder="sk-…"></div>
+          <div class="setting-group"><label>DeepSeek Model Name</label><input type="text" id="model-deepseek" placeholder="deepseek-chat"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="openrouter">
+          <div class="setting-group"><label>OpenRouter API Key</label><input type="password" id="key-openrouter" placeholder="sk-or-…"></div>
+          <div class="setting-group"><label>OpenRouter Model Name</label><input type="text" id="model-openrouter" placeholder="google/gemini-2.0-flash-exp:free"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="nvidia">
+          <div class="setting-group"><label>Nvidia API Key</label><input type="password" id="key-nvidia" placeholder="nvapi-…"></div>
+          <div class="setting-group"><label>Nvidia Model Name</label><input type="text" id="model-nvidia" placeholder="qwen/qwen3-coder-480b-a35b-instruct"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="glm">
+          <div class="setting-group"><label>GLM API Key</label><input type="password" id="key-glm" placeholder="api-key…"></div>
+          <div class="setting-group"><label>GLM Model Name</label><input type="text" id="model-glm" placeholder="glm-4-flash"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="dough">
+          <div class="setting-group"><label>Dough.id API Key</label><input type="password" id="key-dough" placeholder="sk-dough-…"></div>
+          <div class="setting-group"><label>Dough.id Model Name</label><input type="text" id="model-dough" placeholder="deepseek-chat"></div>
+        </div>
+        <div class="provider-fields-group" data-provider="custom">
+          <div class="setting-group"><label>Custom API Key</label><input type="password" id="key-custom" placeholder="api-key…"></div>
+          <div class="setting-group"><label>Custom Model Name</label><input type="text" id="model-custom" placeholder="custom-model"></div>
+          <div class="setting-group"><label>Custom Endpoint URL</label><input type="text" id="endpoint-custom" placeholder="https://api.yourdomain.com/v1/chat/completions"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Config</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ UI ENHANCEMENT LAYER ══
+     This script patches canvas.js DOM output for cool animations.
+     It intercepts the "Thinking..." placeholder and adds animated neural UI.
+     All API calls remain in canvas.js unchanged. -->
+<script>
+(function() {
+  /* ── Matrix chars pool ── */
+  const MATRIX = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ∞∑∫≈≠±∂';
+
+  function randomMatrixStr(len) {
+    let s = '';
+    for (let i = 0; i < len; i++) s += MATRIX[Math.floor(Math.random() * MATRIX.length)];
+    return s;
+  }
+
+  /* ── Progress bar ── */
+  const progressBar = document.getElementById('gen-progress-bar');
+  let progressInterval = null;
+  let progressVal = 0;
+
+  function startProgress() {
+    progressBar.classList.add('active');
+    progressVal = 0;
+    progressBar.style.width = '0%';
+    progressInterval = setInterval(() => {
+      // Exponential approach to 90% (never hits 100 until done)
+      if (progressVal < 88) {
+        progressVal += (90 - progressVal) * 0.03;
+        progressBar.style.width = progressVal + '%';
+      }
+    }, 120);
+  }
+
+  function endProgress() {
+    clearInterval(progressInterval);
+    progressBar.style.width = '100%';
+    setTimeout(() => {
+      progressBar.classList.remove('active');
+      progressBar.style.width = '0%';
+    }, 400);
+  }
+
+  /* ── Neural thinking widget ── */
+  function makeNeuralThinking() {
+    const wrap = document.createElement('div');
+    wrap.className = 'neural-thinking';
+    wrap.id = '_nt_widget';
+
+    const label = document.createElement('span');
+    label.className = 'nt-label';
+    label.textContent = 'Neural';
+
+    const dots = document.createElement('div');
+    dots.className = 'nt-dots';
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElement('div');
+      d.className = 'nt-dot';
+      dots.appendChild(d);
+    }
+
+    const stream = document.createElement('span');
+    stream.className = 'nt-stream';
+    stream.textContent = randomMatrixStr(8);
+
+    wrap.appendChild(label);
+    wrap.appendChild(dots);
+    wrap.appendChild(stream);
+
+    // Cycle matrix chars
+    const charTimer = setInterval(() => {
+      stream.textContent = randomMatrixStr(8);
+    }, 150);
+    wrap._clearTimer = () => clearInterval(charTimer);
+
+    return wrap;
+  }
+
+  /* ── Patch: observe chatHistory for new "Thinking..." messages ── */
+  const chatHistory = document.getElementById('chat-history');
+  if (chatHistory) {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mut => {
+        mut.addedNodes.forEach(node => {
+          if (node.nodeType !== 1) return;
+
+          // "Thinking..." placeholder — replace with neural widget + typewriter
+          if (node.classList && node.classList.contains('ai') &&
+              (node.innerHTML === 'Thinking...' ||
+               node.innerHTML === 'Analyzing error and correcting graph...' ||
+               node.innerHTML === 'Debugging logic code and patching graph...')) {
+
+            // Add thinking animation class
+            node.classList.add('thinking');
+
+            // Prepend neural thinking widget into chatHistory above this message
+            const nt = makeNeuralThinking();
+            nt.style.marginBottom = '0';
+            chatHistory.insertBefore(nt, node);
+
+            // Clear placeholder text, add cursor
+            node.innerHTML = '<span class="typewriter-cursor"></span>';
+            node._ntWidget = nt;
+
+            startProgress();
+          }
+
+          // User message — add pulse
+          if (node.classList && node.classList.contains('user')) {
+            node.classList.add('new-msg');
+          }
+        });
+
+        // When AI message content changes away from placeholder,
+        // clean up thinking widget
+        mut.type === 'characterData' || mut.attributeName;
+      });
+    });
+
+    observer.observe(chatHistory, { childList: true, subtree: true });
+
+    // Watch for content changes in AI messages to remove neural widget
+    const contentObserver = new MutationObserver((mutations) => {
+      mutations.forEach(mut => {
+        const target = mut.target;
+        if (!target) return;
+        const msg = target.closest ? target.closest('.message.ai') : null;
+        if (!msg) return;
+
+        // Message got real content — remove neural widget
+        if (msg._ntWidget && msg.textContent.length > 2 && !msg.querySelector('.typewriter-cursor')) {
+          if (msg._ntWidget._clearTimer) msg._ntWidget._clearTimer();
+          msg._ntWidget.remove();
+          delete msg._ntWidget;
+          msg.classList.remove('thinking');
+          endProgress();
+        }
+      });
+    });
+    contentObserver.observe(chatHistory, { subtree: true, characterData: true, childList: true });
+  }
+
+  /* ── Replace legacy color-coded deploy spans with chips ── */
+  function upgradeStatusSpans(container) {
+    if (!container) return;
+    const spans = container.querySelectorAll('span[style*="color"]');
+    spans.forEach(span => {
+      const txt = span.textContent.trim();
+      let chipClass = null;
+      if (txt.startsWith('✅') || txt.includes('success') || txt.includes('deployed')) chipClass = 'success';
+      else if (txt.startsWith('❌') || txt.includes('Error') || txt.includes('failed')) chipClass = 'error';
+      else if (txt.startsWith('⚡') || txt.includes('Deploy') || txt.includes('Redeply')) chipClass = 'info';
+      if (chipClass) {
+        const chip = document.createElement('span');
+        chip.className = 'status-chip ' + chipClass;
+        chip.textContent = txt.replace(/^[✅❌⚡]\s*/, '');
+        span.parentNode.replaceChild(chip, span);
+      }
+    });
+  }
+
+  // Observer for upgrading status spans as they're added
+  if (chatHistory) {
+    const spanObserver = new MutationObserver(() => {
+      chatHistory.querySelectorAll('.message.ai').forEach(upgradeStatusSpans);
+    });
+    spanObserver.observe(chatHistory, { childList: true, subtree: true });
+  }
+
+  /* ── Status text mirror ── */
+  const statusText = document.getElementById('status-text');
+  const statusDot  = document.getElementById('status-indicator');
+  if (statusDot) {
+    const dotObserver = new MutationObserver(() => {
+      const isGen = statusDot.classList.contains('generating');
+      if (isGen) {
+        startProgress();
+      } else {
+        endProgress();
+      }
+    });
+    dotObserver.observe(statusDot, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  /* ── Enter key sends message ── */
+  const promptInput = document.getElementById('prompt-input');
+  if (promptInput) {
+    promptInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const sendBtn = document.getElementById('btn-send');
+        if (sendBtn && !sendBtn.disabled) sendBtn.click();
+      }
+    });
+  }
+
+})();
+</script>
+
+<script src="canvas.js"></script>
+</body>
+</html>

@@ -167,6 +167,22 @@ class RequestWrapper:
         """Returns Content-Type header value (lowercase)."""
         return self.headers.get('Content-Type', '').lower()
 
+    @property
+    def query_string(self):
+        """Raw query string from the URL (without leading '?')."""
+        parsed = urllib.parse.urlparse(self.handler.path)
+        return parsed.query
+
+    @property
+    def args(self):
+        """Alias for query_params (Flask-compatible)."""
+        return self.query_params
+
+    @property
+    def form(self):
+        """Alias for parsed form params as flat dict (Flask-compatible)."""
+        return self.get_form()
+
     def get_param(self, key, default=None):
         """Get a form-body or URL-param value by key."""
         # Check url_params first (dynamic route segments)
@@ -190,6 +206,23 @@ class RequestWrapper:
             return _json.loads(self.body_bytes.decode('utf-8'))
         except (ValueError, UnicodeDecodeError):
             return None
+
+    def get_form(self):
+        """
+        Return form-encoded POST body as a flat dict.
+        Each value is unwrapped from the list that parse_qs produces.
+        Returns empty dict if no form data.
+
+        Example (LogicNode):
+            data = request.get_form()
+            name = data.get('name', '')
+        """
+        if not self.params:
+            return {}
+        return {
+            k: v[0] if isinstance(v, list) and len(v) == 1 else v
+            for k, v in self.params.items()
+        }
 
     def get_file(self, key):
         """

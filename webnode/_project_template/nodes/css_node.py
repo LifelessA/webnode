@@ -32,7 +32,7 @@ class CSSNode(BaseNode):
     def apply(self):
         """Write CSS code to the static directory."""
         if not self.filename:
-            return
+            self.filename = 'style.css'
         # Ensure filename ends with .css
         fname = self.filename if self.filename.endswith('.css') else self.filename + '.css'
         dest = os.path.join(settings.STATIC_ROOT, fname)

@@ -23,8 +23,39 @@ import os
 import re
 import ast
 import html
+import threading
 import settings
 from nodes.base_node import BaseNode
+
+
+# ---------------------------------------------------------------------------
+# DotDict — makes dict keys accessible via dot notation for templates
+# ---------------------------------------------------------------------------
+
+class DotDict(dict):
+    """Dict subclass that allows attribute-style access (d.key == d['key'])."""
+    def __getattr__(self, key):
+        try:
+            val = self[key]
+            return _wrap_value(val)
+        except KeyError:
+            return ''
+    def __setattr__(self, key, value):
+        self[key] = value
+
+
+def _wrap_value(val):
+    """Recursively wrap dicts/lists so dot-access works in templates."""
+    if isinstance(val, dict) and not isinstance(val, DotDict):
+        return DotDict(val)
+    if isinstance(val, list):
+        return [_wrap_value(item) for item in val]
+    return val
+
+
+def _wrap_context(ctx):
+    """Wrap top-level context dict values for dot-access in templates."""
+    return {k: _wrap_value(v) for k, v in ctx.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +67,9 @@ class TemplateEngine:
     Processes Node template syntax.
     Single-pass renderer: inheritance → includes → tags → variables.
     """
+
+    _file_cache = {}
+    _cache_lock = threading.Lock()
 
     BLOCK_RE    = re.compile(r'\{%\s*block\s+(\w+)\s*%\}(.*?)\{%\s*endblock\s*%\}', re.DOTALL)
     EXTENDS_RE  = re.compile(r'^\s*\{%\s*extends\s+["\']([^"\']+)["\']\s*%\}')
@@ -50,12 +84,44 @@ class TemplateEngine:
         self.template_dir = template_dir
 
     def _read_file(self, name):
+        import settings
+        
+        # In DEBUG mode — always read fresh
+        # (developer wants live changes)
+        if settings.DEBUG:
+            path = os.path.join(self.template_dir, name)
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            except FileNotFoundError:
+                return f'<!-- Template not found: {html.escape(name)} -->'
+        
+        # In PRODUCTION mode — use cache
+        cache_key = f"{self.template_dir}:{name}"
+        
+        with TemplateEngine._cache_lock:
+            if cache_key in TemplateEngine._file_cache:
+                return TemplateEngine._file_cache[cache_key]
+        
+        # Not in cache — read from disk
         path = os.path.join(self.template_dir, name)
         try:
             with open(path, 'r', encoding='utf-8') as f:
-                return f.read()
+                content = f.read()
         except FileNotFoundError:
-            return f'<!-- Template not found: {html.escape(name)} -->'
+            content = f'<!-- Template not found: {html.escape(name)} -->'
+        
+        # Store in cache
+        with TemplateEngine._cache_lock:
+            TemplateEngine._file_cache[cache_key] = content
+        
+        return content
+
+    @classmethod
+    def cache_clear(cls):
+        with cls._cache_lock:
+            cls._file_cache.clear()
+            print("[TemplateEngine] Cache cleared.")
 
     # ---------------------------------------------------------------------------
     # Safe Expression Evaluator
@@ -129,6 +195,7 @@ class TemplateEngine:
     def render(self, template_name, context=None):
         if context is None:
             context = {}
+        context = _wrap_context(context)
         source = self._read_file(template_name)
         rendered_html = self._process(source, context, template_name)
         return self._inject_pyscript(rendered_html)

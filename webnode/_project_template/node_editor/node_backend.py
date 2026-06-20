@@ -6,6 +6,32 @@ import subprocess
 import signal
 import sys
 import socket
+import webbrowser
+import threading
+
+sys.path.insert(
+    0, 
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+
+def _check_production_lock():
+    try:
+        import settings
+        if settings.is_production():
+            print(
+                "\n" + "="*55 +
+                "\n  🔒 NODE EDITOR LOCKED" +
+                "\n  ENV=production detected." +
+                "\n  Node Editor cannot run in production mode." +
+                "\n  Risk: Remote Code Execution" +
+                "\n  Set ENV=development to enable editor." +
+                "\n" + "="*55 + "\n"
+            )
+            sys.exit(1)
+    except ImportError:
+        pass  # settings not found — allow
+
+_check_production_lock()
 
 PORT = 8080  # Node Editor port
 EDITOR_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -68,9 +94,43 @@ def wait_for_server(port, timeout=10, host='127.0.0.1'):
             time.sleep(0.3)
     return False
 
+import urllib.request
+import traceback
+
+FRAMEWORK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def load_rag_content(node_type=None):
+    rag_path = os.path.join(FRAMEWORK_DIR, 'core', 'ai', 'FRAMEWORK_RAG.md')
+    ui_rag_path = os.path.join(FRAMEWORK_DIR, 'core', 'ai', 'UI_SKILL_RAG.md')
+    content = ""
+    # FRAMEWORK_RAG only for the architect endpoint (graph building)
+    # Individual nodes should NOT see graph-building examples
+    if node_type is None:
+        if os.path.exists(rag_path):
+            try:
+                with open(rag_path, 'r', encoding='utf-8') as f:
+                    content += f.read() + "\n\n"
+            except Exception:
+                pass
+    # UI_SKILL_RAG for visual nodes (RenderNode, CSSNode, ClientJSNode) and architect
+    if node_type in (None, 'RenderNode', 'TemplateNode', 'CSSNode', 'ClientJSNode'):
+        if os.path.exists(ui_rag_path):
+            try:
+                with open(ui_rag_path, 'r', encoding='utf-8') as f:
+                    content += f.read() + "\n\n"
+            except Exception:
+                pass
+    return content
+
 class EditorHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=EDITOR_DIR, **kwargs)
+
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
+        super().end_headers()
 
     def do_GET(self):
         if self.path == '/api/status':
@@ -79,6 +139,8 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_load()
         elif self.path == '/api/errors':
             self.handle_errors()
+        elif self.path == '/api/settings/load':
+            self.handle_settings_load()
         else:
             super().do_GET()
 
@@ -89,6 +151,16 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_deploy()
         elif self.path == '/api/stop':
             self.handle_stop()
+        elif self.path == '/api/settings/save':
+            self.handle_settings_save()
+        elif self.path == '/api/ai/generate':
+            self.handle_ai_generate()
+        elif self.path == '/api/ai/architect':
+            self.handle_ai_architect()
+        elif self.path == '/api/node_file_save':
+            self.handle_node_file_save()
+        elif self.path == '/api/db/reset':
+            self.handle_db_reset()
         else:
             self.send_error(404, "API endpoint not found")
 
@@ -98,10 +170,24 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         if active_process and active_process.poll() is None:
             is_live = True
         
+        # Calculate graph hash
+        graph_hash = ""
+        graph_path = os.path.join(EDITOR_DIR, 'graph.json')
+        if os.path.exists(graph_path):
+            import hashlib
+            try:
+                with open(graph_path, 'rb') as f:
+                    graph_hash = hashlib.md5(f.read()).hexdigest()
+            except Exception:
+                pass
+        
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        self.wfile.write(json.dumps({'status': 'live' if is_live else 'offline'}).encode())
+        self.wfile.write(json.dumps({
+            'status': 'live' if is_live else 'offline',
+            'graph_hash': graph_hash
+        }).encode())
 
     def handle_load(self):
         graph_path = os.path.join(EDITOR_DIR, 'graph.json')
@@ -132,6 +218,20 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps(state).encode())
 
     def handle_save(self):
+        try:
+            import settings
+            if settings.is_production():
+                self.send_response(403)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'message': 'Node Editor is locked in production mode. Set ENV=development to enable.'
+                }).encode())
+                return
+        except ImportError:
+            pass
+
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         graph_data = json.loads(post_data.decode('utf-8'))
@@ -145,6 +245,20 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps({'status': 'success'}).encode())
 
     def handle_stop(self):
+        try:
+            import settings
+            if settings.is_production():
+                self.send_response(403)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'message': 'Node Editor is locked in production mode. Set ENV=development to enable.'
+                }).encode())
+                return
+        except ImportError:
+            pass
+
         global active_process
         if active_process:
             active_process.terminate()
@@ -155,17 +269,420 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps({'status': 'stopped'}).encode())
 
+    def handle_settings_load(self):
+        try:
+            from ai_editor.ai_backend import load_ai_settings
+            config = load_ai_settings()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(config).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(e)}).encode())
+
+    def handle_settings_save(self):
+        try:
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            settings_data = json.loads(post_data.decode('utf-8'))
+            from ai_editor.ai_backend import save_ai_settings
+            save_ai_settings(settings_data)
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'success'}).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
+
+    def handle_db_reset(self):
+        try:
+            import sys
+            sys.path.append(FRAMEWORK_DIR)
+            from database import reset_db
+            success = reset_db()
+            self.send_response(200 if success else 500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'success' if success else 'error'}).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
+
+    def handle_node_file_save(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            payload = json.loads(post_data.decode('utf-8'))
+            
+            filename = payload.get('filename', '').strip()
+            content = payload.get('content', '')
+            node_type = payload.get('node_type', '')
+            
+            if not filename:
+                raise ValueError("Filename is required")
+                
+            # Prevent path traversal
+            if '..' in filename or '/' in filename or '\\' in filename:
+                raise ValueError("Invalid filename: must not contain paths")
+                
+            # Determine target directory
+            if node_type == 'RenderNode' or node_type == 'TemplateNode':
+                target_dir = os.path.join(FRAMEWORK_DIR, 'templates')
+            else:
+                target_dir = os.path.join(FRAMEWORK_DIR, 'static')
+                
+            os.makedirs(target_dir, exist_ok=True)
+            target_path = os.path.join(target_dir, filename)
+            
+            with open(target_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'success', 
+                'path': os.path.relpath(target_path, FRAMEWORK_DIR).replace('\\', '/')
+            }).encode())
+            
+        except Exception as e:
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
+
+    def handle_ai_architect(self):
+        try:
+            if self.path == '/api/master_architect':
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                prompt = data.get('prompt', '')
+                provider = data.get('provider', 'ollama')
+                api_key = data.get('api_key', '')
+
+                # Parse AI config
+                ai_config = {}
+                with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ai_editor', 'ai_backend.py'), 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if line.startswith('AI_CONFIG'):
+                            ai_config = eval(line.split('=', 1)[1].strip())
+                            break
+
+                if provider != 'ollama' and provider != 'local' and not api_key:
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(f"API Key for '{provider}' is missing.".encode('utf-8'))
+                    return
+
+                rag_content = load_rag_content()
+                system_prompt = f'''You are a Master Software Architect for a Node-Based Web Framework.
+    The user will describe a website or application. You must output ONLY a valid JSON object representing the graph architecture.
+    DO NOT wrap the JSON in backticks.
+    The JSON MUST have two keys: "graph" and "instructions".
+    1. "graph": an object with "nodes" (array) and "connections" (array).
+       - Nodes must have: id (unique string), type (ServerNode, HTTPRequestsNode, URLNode, RenderNode, CSSNode, LogicNode, JSNode, ClientJSNode), x (number), y (number).
+       - ServerNode MUST be present, usually followed by HTTPRequestsNode -> URLNode -> RenderNode (Template) -> CSSNode/ClientJSNode.
+       - You can place nodes roughly 250px apart horizontally.
+    2. "instructions": an object mapping node IDs to specific AI prompts.
+       - For RenderNode, provide a prompt to generate the HTML. Instruct the AI to use the UI_SKILL_RAG methods.
+       - For CSSNode, provide a prompt to generate the CSS. Instruct the AI to use the UI_SKILL_RAG methods.
+       - For ClientJSNode, provide a prompt to generate the frontend JS.
+       - For LogicNode, provide a prompt to generate the Python backend logic.
+
+    Here is the RAG context about the framework and UI skills:
+    {rag_content}
+
+    Example output:
+    {{
+      "graph": {{
+        "nodes": [
+          {{"id": "node-server", "type": "ServerNode", "x": 100, "y": 100}},
+          {{"id": "node-render", "type": "RenderNode", "x": 400, "y": 100}},
+          {{"id": "node-css", "type": "CSSNode", "x": 700, "y": 100}}
+        ],
+        "connections": [
+          {{"source": "node-server", "target": "node-render"}},
+          {{"source": "node-render", "target": "node-css"}}
+        ]
+      }},
+      "instructions": {{
+        "node-render": "Generate HTML for a landing page following the UI_SKILL_RAG rules (Unsplash images, semantic tags).",
+        "node-css": "Generate CSS using modern flex/grid, UI_SKILL_RAG animations, and glassmorphism."
+      }}
+    }}
+    '''
+            else:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                prompt = data.get('prompt', '')
+
+                if not prompt:
+                    raise ValueError("Prompt is required")
+
+                from ai_editor.ai_backend import load_ai_settings, get_provider_request_details
+                ai_config = load_ai_settings()
+                provider = ai_config.get('SELECTED_AI_PROVIDER', 'ollama').lower()
+                
+                api_key = ""
+                if provider == "gemini": api_key = ai_config.get("GEMINI_API_KEY")
+                elif provider == "gpt": api_key = ai_config.get("OPENAI_API_KEY")
+                elif provider == "claude": api_key = ai_config.get("CLAUDE_API_KEY")
+                elif provider == "deepseek": api_key = ai_config.get("DEEPSEEK_API_KEY")
+                elif provider == "openrouter": api_key = ai_config.get("OPENROUTER_API_KEY")
+                elif provider == "nvidia": api_key = ai_config.get("NVIDIA_API_KEY")
+                elif provider == "glm": api_key = ai_config.get("GLM_API_KEY")
+                elif provider == "dough": api_key = ai_config.get("DOUGH_API_KEY")
+                elif provider == "custom": api_key = ai_config.get("CUSTOM_API_KEY")
+
+                if provider != "ollama" and not api_key:
+                    self.send_response(400)
+                    self.end_headers()
+                    self.wfile.write(f"API Key for '{provider}' is missing.".encode('utf-8'))
+                    return
+
+                system_prompt = '''You are a Master Software Architect for a Node-Based Web Framework.
+    The user will describe a website or application. You must output ONLY a valid JSON object representing the graph architecture.
+    DO NOT wrap the JSON in backticks.
+    The JSON MUST have two keys: "graph" and "instructions".
+    1. "graph": an object with "nodes" (array) and "connections" (array).
+       - Nodes must have: id (unique string), type (ServerNode, HTTPRequestsNode, URLNode, RenderNode, CSSNode, LogicNode, JSNode, ClientJSNode), x (number), y (number).
+       - ServerNode MUST be present, usually followed by HTTPRequestsNode -> URLNode -> RenderNode (Template) -> CSSNode/ClientJSNode.
+       - You can place nodes roughly 250px apart horizontally.
+    2. "instructions": an object mapping node IDs to specific AI prompts.
+       - For RenderNode, provide a prompt to generate the HTML.
+       - For CSSNode, provide a prompt to generate the CSS.
+       - For ClientJSNode, provide a prompt to generate the frontend JS.
+       - For LogicNode, provide a prompt to generate the Python backend logic.
+
+    Example output:
+    {
+      "graph": {
+        "nodes": [
+          {"id": "node-server", "type": "ServerNode", "x": 100, "y": 100},
+          {"id": "node-render", "type": "RenderNode", "x": 400, "y": 100},
+          {"id": "node-css", "type": "CSSNode", "x": 700, "y": 100}
+        ],
+        "connections": [
+          {"source": "node-server", "target": "node-render"},
+          {"source": "node-render", "target": "node-css"}
+        ]
+      },
+      "instructions": {
+        "node-render": "Generate the HTML layout for a blog index",
+        "node-css": "Generate the CSS styles for the blog index, use a clean modern theme"
+      }
+    }
+    '''
+            url, headers, req_data = get_provider_request_details(
+                provider=provider,
+                ai_config=ai_config,
+                api_key=api_key,
+                system_prompt=system_prompt,
+                user_prompt=prompt,
+                stream=False
+            )
+
+            import urllib.request
+            req = urllib.request.Request(url, data=json.dumps(req_data).encode('utf-8'), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=120) as res:
+                response_data = res.read().decode('utf-8')
+                
+                # Parse response depending on provider
+                result_text = ""
+                if provider == 'ollama':
+                    result_text = json.loads(response_data).get('response', '')
+                else:
+                    choices = json.loads(response_data).get('choices', [])
+                    if choices:
+                        result_text = choices[0].get('message', {}).get('content', '')
+
+                # Clean markdown backticks if any
+                result_text = result_text.strip()
+                if result_text.startswith('```json'): result_text = result_text[7:]
+                elif result_text.startswith('```'): result_text = result_text[3:]
+                if result_text.endswith('```'): result_text = result_text[:-3]
+                
+                parsed_json = json.loads(result_text.strip())
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(parsed_json).encode())
+
+        except Exception as e:
+            self.send_response(400)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
+
+    def handle_ai_generate(self):
+        try:
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            payload = json.loads(post_data.decode('utf-8'))
+            prompt = payload.get('prompt', '')
+            code = payload.get('code', '')
+            node_type = payload.get('node_type', '')
+
+            from ai_editor.ai_backend import load_ai_settings, get_provider_request_details
+            import urllib.request
+            ai_config = load_ai_settings()
+            provider = ai_config.get("SELECTED_AI_PROVIDER", "ollama").lower()
+            
+            api_key = ""
+            if provider == "gemini": api_key = ai_config.get("GEMINI_API_KEY")
+            elif provider == "gpt": api_key = ai_config.get("OPENAI_API_KEY")
+            elif provider == "claude": api_key = ai_config.get("CLAUDE_API_KEY")
+            elif provider == "deepseek": api_key = ai_config.get("DEEPSEEK_API_KEY")
+            elif provider == "openrouter": api_key = ai_config.get("OPENROUTER_API_KEY")
+            elif provider == "nvidia": api_key = ai_config.get("NVIDIA_API_KEY")
+            elif provider == "glm": api_key = ai_config.get("GLM_API_KEY")
+            elif provider == "dough": api_key = ai_config.get("DOUGH_API_KEY")
+            elif provider == "custom": api_key = ai_config.get("CUSTOM_API_KEY")
+            
+            if provider != "ollama" and not api_key:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(f"API Key for '{provider}' is missing.".encode('utf-8'))
+                return
+
+            if node_type == 'Test':
+                system_prompt = "You are a helpful AI assistant. The user is testing the API connection. Respond directly and concisely to the prompt."
+                user_prompt = prompt
+            else:
+                rag_content = load_rag_content(node_type=node_type)
+                system_prompt = f"You are an AI generating code for a {node_type} node in a visual Node Editor Framework.\n"
+                if rag_content.strip():
+                    system_prompt += f"\n### UI SKILL RAG CONTEXT:\n{rag_content}\n\n"
+                
+                if node_type == 'LogicNode' or node_type == 'ContextNode':
+                    system_prompt += f"In `node_backend.py`, you are the {node_type} (Backend Python logic). You MUST return a dictionary to update `request.context`.\n"
+                    system_prompt += "If the user prompt contains a SEED instruction from the RenderNode, use that context to write the required backend python logic for the HTML frontend.\n"
+                    system_prompt += "IMPORTANT: NEVER import `from app import db` or use SQLAlchemy.\n"
+                    system_prompt += "For database operations, ALWAYS import `from database import query_db, execute_db`.\n"
+                    system_prompt += "Example Select: `users = query_db('SELECT * FROM users')`\n"
+                    system_prompt += "Example Insert: `execute_db('INSERT INTO users (name) VALUES (?)', (name,))`\n"
+                    system_prompt += "CRITICAL OUTPUT FORMAT: Output ONLY raw Python code starting with import statements or function definitions. Do NOT output JSON objects with keys like 'node_type', 'code', 'nodes', 'connections'. Do NOT wrap code in JSON. Just output the raw Python function code directly.\n"
+                elif node_type == 'JSNode':
+                    system_prompt += "In `node_backend.py`, you are the JSNode (Backend Node.js server logic). It MUST define `function process_logic(request) { ... }` returning an object.\n"
+                    system_prompt += "If the user prompt contains a SEED instruction from the RenderNode, use that context to write the required backend Node.js logic.\n"
+                    system_prompt += "CRITICAL: This runs in Node.js on the server! DO NOT write HTML, CSS, or browser DOM code (no `document`, `window`, etc.). If the user asks for a game/UI, return the initial state object.\n"
+                    system_prompt += "CRITICAL OUTPUT FORMAT: Output ONLY raw JavaScript code. Do NOT output JSON objects with keys like 'node_type', 'code', 'nodes', 'connections'. Just output the raw JS function code directly.\n"
+                elif node_type == 'ClientJSNode':
+                    system_prompt += "In `node_backend.py`, you are the ClientJSNode. You write frontend client-side JavaScript that runs in the browser.\n"
+                    system_prompt += "The user prompt will contain a SEED generated by the RenderNode describing the HTML structure.\n"
+                    system_prompt += "Use this HTML context from the SEED to write the perfect frontend JavaScript (DOM manipulation, game loops, event listeners). DO NOT output HTML or CSS.\n"
+                elif node_type == 'CSSNode':
+                    system_prompt += "In `node_backend.py`, you are the CSSNode. Output pure CSS rules. The user prompt will contain a SEED generated by the RenderNode describing the HTML structure and classes.\n"
+                    system_prompt += "Use this HTML context from the SEED to write the perfect CSS. Apply the UI_SKILL_RAG rules for modern aesthetics, gradients, glassmorphism, and hover sweeps.\n"
+                elif node_type == 'RenderNode' or node_type == 'TemplateNode':
+                    system_prompt += "In `node_backend.py`, you are the RenderNode (Template Node). You write the HTML frontend.\n"
+                    system_prompt += "CRITICAL TEMPLATE SYNTAX: Use `{{ var }}` for variables (NOT {var}). Use `{% for x in list %}` and `{% endfor %}` for loops (NOT {# for #}). Use `{% if cond %}` and `{% endif %}` for conditions.\n"
+                    system_prompt += "CRITICAL SEED INSTRUCTION: You are the MASTER node that generates the SEED context for the CSS, JS, and Python nodes. You MUST output exactly TWO sections separated by '---SEED_SEPARATOR---'.\n"
+                    system_prompt += "Section 1: The raw HTML code ONLY. DO NOT write any `<style>` tags or `<script>` tags for application logic in the HTML. You MUST leave styling and logic to the CSS and JS nodes.\n"
+                    system_prompt += "Section 2: A raw JSON dictionary with exactly 4 keys: 'css', 'js', 'py', 'path'. For 'css', give detailed styling instructions. For 'js', give detailed instructions to generate the frontend client-side JavaScript logic (DOM, events, game loop). For 'py', give instructions for any required Python backend logic. The user will use this seed in the CSS, ClientJS, and Python nodes.\n"
+                    system_prompt += "CRITICAL: You are NOT the graph architect. Do NOT output JSON with 'nodes', 'connections', 'ServerNode', 'URLNode' etc. You output ONLY raw HTML code followed by ---SEED_SEPARATOR--- and then a seed JSON with keys 'css','js','py','path'. Nothing else.\n"
+                
+                system_prompt += "\nCRITICAL RULES:\n1. NEVER TRUNCATE CODE! If the user wants to fix or modify the code, you MUST output the ENTIRE updated code from start to finish. Do NOT skip lines, and do NOT use placeholders like `/* rest of code */` or `...`.\n2. Do NOT just output the changed lines or partial snippets.\n3. OUTPUT ONLY THE RAW TEXT/CODE REQUESTED. DO NOT WRAP IT IN MARKDOWN BACKTICKS (```) AND DO NOT INCLUDE ANY EXPLANATIONS."
+                user_prompt = f"Current Code:\n{code}\n\nUser Request: {prompt}"
+            
+            url, headers, req_data = get_provider_request_details(
+                provider=provider,
+                ai_config=ai_config,
+                api_key=api_key,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                stream=True,
+                chat_history=[]
+            )
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+
+            req = urllib.request.Request(url, data=json.dumps(req_data).encode('utf-8'), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=300) as res:
+                buffer_t = b""
+                while True:
+                    chunk = res.read(1024)
+                    if not chunk:
+                        break
+                    buffer_t += chunk
+                    while b"\n" in buffer_t:
+                        line_bytes_t, buffer_t = buffer_t.split(b"\n", 1)
+                        line_str_t = line_bytes_t.decode('utf-8').strip()
+                        if not line_str_t:
+                            continue
+                        
+                        text_chunk = ""
+                        if provider == "ollama":
+                            try:
+                                data_json_t = json.loads(line_str_t)
+                                text_chunk = data_json_t.get('response', '')
+                            except Exception: pass
+                        else:
+                            if line_str_t.startswith("data:"):
+                                data_str_t = line_str_t[len("data:"):].strip()
+                                if data_str_t == "[DONE]":
+                                    break
+                                try:
+                                    data_json_t = json.loads(data_str_t)
+                                    choices = data_json_t.get('choices', [])
+                                    if choices:
+                                        delta = choices[0].get('delta', {})
+                                        text_chunk = delta.get('content', '')
+                                except Exception: pass
+                        
+                        if text_chunk:
+                            self.wfile.write(text_chunk.encode('utf-8'))
+                            self.wfile.flush()
+
+        except Exception as e:
+            self.wfile.write(f"\\n[ERROR] {str(e)}".encode('utf-8'))
+
     def handle_deploy(self):
+        try:
+            import settings
+            if settings.is_production():
+                self.send_response(403)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'status': 'error',
+                    'message': 'Node Editor is locked in production mode. Set ENV=development to enable.'
+                }).encode())
+                return
+        except ImportError:
+            pass
+
         global active_process
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         graph_data = json.loads(post_data.decode('utf-8'))
         
-        # 1. Save JSON
+        # 1. Clear previous error state
+        try:
+            from core.errors import NodeErrorReporter
+            NodeErrorReporter.clear_errors()
+        except Exception:
+            pass
+
+        # 2. Save JSON
         with open(os.path.join(EDITOR_DIR, 'graph.json'), 'w') as f:
             json.dump(graph_data, f, indent=4)
             
-        # 2. Compile JSON to main.py
+        # 3. Compile JSON to main.py
         try:
             self.compile_graph(graph_data)
         except Exception as e:
@@ -234,6 +751,33 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         nodes = {n['id']: n for n in graph_data['nodes']}
         connections = graph_data['connections']
         
+        # 0. Clean old generated files (static CSS + templates)
+        #    This prevents disconnected CSSNodes from leaving stale files
+        import glob
+        static_dir = os.path.join(FRAMEWORK_DIR, 'static')
+        if os.path.exists(static_dir):
+            for css_file in glob.glob(os.path.join(static_dir, '*.css')):
+                try:
+                    os.remove(css_file)
+                except OSError:
+                    pass
+        
+        templates_dir = os.path.join(FRAMEWORK_DIR, 'templates')
+        if os.path.exists(templates_dir):
+            for html_file in glob.glob(os.path.join(templates_dir, '*.html')):
+                try:
+                    os.remove(html_file)
+                except OSError:
+                    pass
+
+        js_code_dir = os.path.join(FRAMEWORK_DIR, 'nodes', 'js_code')
+        if os.path.exists(js_code_dir):
+            for js_file in glob.glob(os.path.join(js_code_dir, '*.js')):
+                try:
+                    os.remove(js_file)
+                except OSError:
+                    pass
+        
         # Find starting node (ServerNode)
         server_node_id = next((n['id'] for n in nodes.values() if n['type'] == 'ServerNode'), None)
         if not server_node_id:
@@ -242,11 +786,12 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         # Find mapping of source -> list of targets
         outgoing_map = {}
         for c in connections:
-            source_id = c['source']
-            target_id = c['target']
-            if source_id not in outgoing_map:
-                outgoing_map[source_id] = []
-            outgoing_map[source_id].append(target_id)
+            source_id = c.get('source') or c.get('from')
+            target_id = c.get('target') or c.get('to')
+            if source_id and target_id:
+                if source_id not in outgoing_map:
+                    outgoing_map[source_id] = []
+                outgoing_map[source_id].append(target_id)
             
         # BFS to find all reachable nodes
         reachable_ids = []
@@ -271,6 +816,7 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         if 'URLNode' in types_used: imports.append("from nodes.url_node import URLNode")
         if 'RenderNode' in types_used: imports.append("from nodes.template_node import RenderNode")
         if 'LogicNode' in types_used: imports.append("from nodes.logic_node import LogicNode")
+        if 'JSNode' in types_used: imports.append("from nodes.js_node import JSNode")
         if 'ModelNode' in types_used:
             imports.append("from nodes.model_node import ModelNode")
             imports.append("from core.db import Database")
@@ -283,8 +829,11 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         if 'CSRFNode' in types_used: imports.append("from plugins.security import CSRFNode")
         if 'ScreenProtectionNode' in types_used: imports.append("from plugins.security import ScreenProtectionNode")
         if 'CSSNode' in types_used: imports.append("from nodes.css_node import CSSNode")
+        if 'ClientJSNode' in types_used: imports.append("from nodes.client_js_node import ClientJSNode")
         
         imports.append("from nodes.response import Response")
+        imports.append("import json")
+        imports.append("import urllib.parse")
 
         code_lines = [
             "# AUTO-GENERATED BY NODE EDITOR COMPILER",
@@ -293,10 +842,19 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         ]
         
         if 'ModelNode' in types_used:
-            code_lines.append("db = Database('node.db')")
-            code_lines.append("db.connect()")
+            code_lines.append("db = Database()")
             
         code_lines.append("\n# Nodes Instantiation")
+        
+        # Build a set of RenderNode IDs that are connected to a CSSNode
+        # This ensures CSS only applies to templates explicitly wired to CSSNode
+        render_ids_with_css = set()
+        for nid in reachable_ids:
+            if nodes[nid]['type'] == 'RenderNode':
+                # Check if this RenderNode has a CSSNode as its target
+                for tgt_id in outgoing_map.get(nid, []):
+                    if tgt_id in nodes and nodes[tgt_id]['type'] == 'CSSNode':
+                        render_ids_with_css.add(nid)
         
         # Initialize variables
         chain_vars = []
@@ -317,6 +875,43 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
                 custom_filename = config.get('filename', '').strip()
                 auto_filename = custom_filename if custom_filename else f"auto_template_{nid}.html"
                 
+                # If this RenderNode is NOT connected to a CSSNode,
+                # strip the <link rel="stylesheet"> tag so CSS doesn't apply
+                if nid not in render_ids_with_css:
+                    import re as _re
+                    html_code = _re.sub(
+                        r'<link[^>]*rel=["\']stylesheet["\'][^>]*/?>',
+                        '<!-- CSS not connected -->',
+                        html_code
+                    )
+                else:
+                    # Automatically inject stylesheet link
+                    css_node_id = next((tgt_id for tgt_id in outgoing_map.get(nid, []) if nodes[tgt_id]['type'] == 'CSSNode'), None)
+                    if css_node_id:
+                        css_config = nodes[css_node_id].get('config', {})
+                        css_filename = css_config.get('css_filename', '').strip()
+                        if not css_filename:
+                            css_filename = f"style_{css_node_id}.css"
+                        if not css_filename.endswith('.css'):
+                            css_filename += '.css'
+                        
+                        # Strip ALL hallucinated link tags and inject the correct one
+                        import re as _re
+                        html_code = _re.sub(
+                            r'<link[^>]*rel=["\']stylesheet["\'][^>]*/?>',
+                            '',
+                            html_code
+                        )
+                        
+                        ref_pattern = f"/static/{css_filename}"
+                        link_tag = f'<link rel="stylesheet" href="{ref_pattern}">'
+                        if "</head>" in html_code:
+                            html_code = html_code.replace("</head>", f"    {link_tag}\n</head>")
+                        elif "<body>" in html_code:
+                            html_code = html_code.replace("<body>", f"    {link_tag}\n<body>")
+                        else:
+                            html_code = link_tag + "\n" + html_code
+                
                 os.makedirs(os.path.join(FRAMEWORK_DIR, 'templates'), exist_ok=True)
                 auto_filepath = os.path.join(FRAMEWORK_DIR, 'templates', auto_filename)
                 
@@ -332,6 +927,68 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
                 func_def_name = _extract_function_name(func_code)
                 code_lines.append(f"\n{func_code}\n")
                 code_lines.append(f"{var_name} = LogicNode({func_def_name})")
+            elif ntype == 'JSNode':
+                logic_counter += 1
+                js_code = config.get('code', 'function process_logic(request) {\n    return {};\n}')
+                js_dir = os.path.join(FRAMEWORK_DIR, 'nodes', 'js_code')
+                os.makedirs(js_dir, exist_ok=True)
+                js_filename = f"js_logic_{nid.replace('-', '_')}.js"
+                js_filepath = os.path.join(js_dir, js_filename)
+                
+                full_js_code = f"""// AUTO-GENERATED BY JS_NODE COMPILER
+const Response = {{
+    json: (data, status = 200) => ({{
+        _is_response: true,
+        body: JSON.stringify(data),
+        status: status,
+        content_type: 'application/json; charset=utf-8'
+    }}),
+    redirect: (url, status = 302) => ({{
+        _is_response: true,
+        body: `<html><body>Redirecting to <a href="${{url}}">${{url}}</a></body></html>`,
+        status: status,
+        content_type: 'text/html; charset=utf-8',
+        headers: {{ 'Location': url }}
+    }}),
+    not_found: (message = '404 Not Found') => ({{
+        _is_response: true,
+        body: message,
+        status: 404,
+        content_type: 'text/html; charset=utf-8'
+    }}),
+    forbidden: (message = '403 Forbidden') => ({{
+        _is_response: true,
+        body: message,
+        status: 403,
+        content_type: 'text/html; charset=utf-8'
+    }})
+}};
+
+{js_code}
+
+// Runner
+const fs = require('fs');
+try {{
+    const inputData = fs.readFileSync(0, 'utf-8');
+    const payload = JSON.parse(inputData);
+    
+    // Find function to execute
+    let execFunc = process_logic;
+    if (typeof execFunc !== 'function') {{
+        throw new Error("No process_logic function found.");
+    }}
+    const result = execFunc(payload);
+    console.log(JSON.stringify({{ status: "success", result: result || {{}} }}));
+}} catch (e) {{
+    console.error(JSON.stringify({{ status: "error", error: e.message, stack: e.stack }}));
+    process.exit(1);
+}}
+"""
+                with open(js_filepath, 'w', encoding='utf-8') as jsf:
+                    jsf.write(full_js_code)
+                
+                rel_js_path = f"nodes/js_code/{js_filename}"
+                code_lines.append(f"{var_name} = JSNode('{rel_js_path}')")
             elif ntype == 'ContextNode':
                 logic_counter += 1
                 func_code = config.get('code', 'def node_logic(request):\n    return {}')
@@ -351,10 +1008,19 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
             elif ntype == 'ScreenProtectionNode':
                 code_lines.append(f"{var_name} = ScreenProtectionNode()")
             elif ntype == 'CSSNode':
-                css_filename = config.get('css_filename', 'style.css')
-                css_code = config.get('css_code', '').replace("'", "\\'").replace('\n', '\\n')
+                css_filename = config.get('css_filename', '').strip()
+                if not css_filename:
+                    css_filename = f"style_{nid}.css"
+                if not css_filename.endswith('.css'):
+                    css_filename += '.css'
+                css_code = config.get('css_code', '').replace('\\', '\\\\').replace('\r', '').replace("'", "\\'").replace('\n', '\\n')
                 code_lines.append(f"{var_name} = CSSNode('{css_filename}', '{css_code}')")
                 code_lines.append(f"{var_name}.apply()  # Writes CSS to /static/{css_filename}")
+            elif ntype == 'ClientJSNode':
+                js_filename = config.get('filename', 'script.js')
+                js_code = config.get('code', '').replace('\\', '\\\\').replace('\r', '').replace("'", "\\'").replace('\n', '\\n')
+                code_lines.append(f"{var_name} = ClientJSNode('{js_filename}', '{js_code}')")
+                code_lines.append(f"{var_name}.apply()  # Writes JS to /static/{js_filename}")
             else:
                 code_lines.append(f"{var_name} = BaseNode()")  # Fallback
                 
@@ -409,10 +1075,55 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         with open(os.path.join(FRAMEWORK_DIR, 'main.py'), 'w') as f:
             f.write("\n".join(code_lines))
 
+def _auto_fix_graph_json():
+    import json
+    import os
+    
+    print("🔧 [Auto-Fix] Running graph.json validation and recovery...")
+    log_path = r"C:\Users\lifel\.gemini\antigravity-ide\brain\da74de2c-266c-47ad-af2e-5f65d2035794\.system_generated\logs\transcript.jsonl"
+    
+    if not os.path.exists(log_path):
+        print(f"⚠️ [Auto-Fix] Log file not found at: {log_path}")
+        return
+        
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    tool_calls = data.get("tool_calls", [])
+                    for call in tool_calls:
+                        if call.get("name") == "write_to_file":
+                            args = call.get("args", {})
+                            target = args.get("TargetFile", "")
+                            code = args.get("CodeContent", "")
+                            if "build_graph.py" in target and "import json" in code:
+                                local_vars = {}
+                                exec(code, globals(), local_vars)
+                                print("⚡ [Auto-Fix] Successfully restored and regenerated graph.json!")
+                                fixed_builder_path = r"C:\Users\lifel\.gemini\antigravity-ide\brain\da74de2c-266c-47ad-af2e-5f65d2035794\build_graph.py"
+                                with open(fixed_builder_path, "w", encoding="utf-8") as out:
+                                    out.write(code)
+                                return
+                except Exception as e:
+                    pass
+        print("⚠️ [Auto-Fix] Could not find the original builder script in the conversation logs.")
+    except Exception as e:
+        print(f"⚠️ [Auto-Fix] Failed to fix graph.json: {e}")
+
 if __name__ == '__main__':
     from http.server import HTTPServer
     from socketserver import ThreadingMixIn
     class ThreadedHTTPServer(ThreadingMixIn, HTTPServer): pass
+    
+    _auto_fix_graph_json()
+    
+    print(f"⚡ Node Editor starting on http://localhost:{PORT}")
+    print("⚠️  WARNING: Never expose port 8080 in production!")
+    print("   Set ENV=production to lock this editor.")
+    
+    # Auto-open browser after a short delay
+    threading.Timer(0.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+    
     with ThreadedHTTPServer(("", PORT), EditorHandler) as httpd:
-        print(f"Node Editor running at http://localhost:{PORT}")
         httpd.serve_forever()

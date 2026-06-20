@@ -99,7 +99,7 @@ def create_project(project_name: str):
 def main():
     parser = argparse.ArgumentParser(
         prog='node-web',
-        description='WebNode Framework CLI — v0.4.0',
+        description='WebNode Framework CLI — v1.3.0',
     )
     subparsers = parser.add_subparsers(dest='command')
 

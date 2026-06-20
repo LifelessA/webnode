@@ -17,17 +17,10 @@ def find_package_data(package_dir):
 
 setup(
     name='webnode',
-    version='0.4.0',
+    version='1.3.0',
     packages=find_packages(),
     package_data={
-        'webnode': [
-            '_editor_files/*',
-            '_project_template/*',
-            '_project_template/**/*',
-            '_project_template/**/**/*',
-            '_project_template/**/**/**/*',
-            '_project_template/**/**/**/**/*',
-        ]
+        'webnode': find_package_data(os.path.join(os.path.dirname(__file__), 'webnode', '_project_template'))
     },
     include_package_data=True,
     entry_points={
@@ -37,7 +30,7 @@ setup(
     },
     python_requires='>=3.8',
     author='LifelessA',
-    description='WebNode Framework — Visual node-based web framework for Python (v0.4.0)',
+    description='WebNode Framework — Visual node-based web framework for Python (v1.3.0)',
     long_description=open('README.md', encoding='utf-8').read() if os.path.exists('README.md') else '',
     long_description_content_type='text/markdown',
     url='https://github.com/LifelessA/webnode',
