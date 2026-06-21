@@ -1,4 +1,4 @@
-# WebNode Framework (v1.3.0)
+# WebNode Framework (v1.4.0)
 
 A custom, powerful, lightweight node-based web framework for Python. Built around a "Graph of Nodes" architecture, it envisions web request processing as a flowchart of connected nodes.
 
