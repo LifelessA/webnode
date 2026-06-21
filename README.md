@@ -16,6 +16,8 @@ Instead of traditional decorators (like Flask or Django `@app.route`), WebNode g
 *   **Automated Project Setup**: The CLI `node-web startproject` perfectly templates out a full app, and `setup_project.py` initializes DBs, secret keys, and logs.
 *   **Cookies & Sessions**: Built-in, secure, cookie-based sessions via `core/sessions.py` handling `HttpOnly` and `SameSite` natively.
 
+  ![API-Key settings](<img width="448" height="548" alt="Screenshot 2026-06-21 214303" src="https://github.com/user-attachments/assets/879f1b18-5693-40a5-a6d7-7990e02e336f" />)
+
 ---
 
 ## 📦 Installation
@@ -78,7 +80,9 @@ python node_editor/node_backend.py
 ```
 Open your browser at **http://localhost:8080**.
 
-![Node Editor GUI](docs/images/node_editor.png)
+![Node Editor GUI](<img width="1536" height="774" alt="image" src="https://github.com/user-attachments/assets/3ef8b0e2-bf0e-4230-b434-3d411e5a1b21" />)
+
+![Editor GUI](<img width="1456" height="663" alt="Screenshot 2026-06-21 214458" src="https://github.com/user-attachments/assets/1f60ee28-02fa-43bd-821b-ea5fd5a473fa" />)
 
 **Features:**
 *   **Drag & Drop**: Drag URL routers, Logic nodes, Python compilers, and HTML renderers from the sidebar Library panel onto a canvas.
