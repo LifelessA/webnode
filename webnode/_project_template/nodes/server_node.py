@@ -243,7 +243,10 @@ class FrameworkHandler(http.server.SimpleHTTPRequestHandler):
             with open(full_path, 'rb') as f:
                 body = f.read()
 
-            return Response(body=body, content_type=content_type, status=200)
+            headers = {
+                'Cache-Control': 'public, max-age=31536000'
+            }
+            return Response(body=body, content_type=content_type, status=200, headers=headers)
 
         except Exception as e:
             if settings.DEBUG:

@@ -1,73 +1,68 @@
-from static.helpers import db
+import flask
+from flask import request, jsonify
+from datetime import datetime
+from database import query_db, execute_db
 
-def process_logic(req):
-    # Initialize products table
+app = flask.Flask(__name__)
+
+MAX_SCORE = 10000  # Arbitrary maximum score to prevent cheating
+
+
+@app.route('/api/global_highscores', methods=['GET'])
+def get_global_highscores():
+    """Fetches the top 5 global high scores from the database."""
     try:
-        db.execute("""CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL,
-            image_url TEXT,
-            description TEXT
-        )""")
-        sample_products = [
-            {"name": "ProRunner Shoes", "price": 129.99, "image_url": "https://images.unsplash.com/photo-1542291026-7eec264c27ea?w=600&q=80"},
-            {"name": "UltraSmart Watch", "price": 249.00, "image_url": "https://images.unsplash.com/photo-1523293182092-99047b3c5e0f?w=600&q=80"},
-            {"name": "SoundPulse Headphones", "price": 199.50, "image_url": "https://images.unsplash.com/photo-1512295767273-ac4ee89f5b13?w=600&q=80"},
-            {"name": "TurboPhone X", "price": 799.00, "image_url": "https://images.unsplash.com/photo-1511467687858-23d96c6b5e0c?w=600&q=80"}
-        ]
-        for prod in sample_products:
-            # Insert only if a product with the same name does not already exist
-            db.execute(
-                "INSERT OR IGNORE INTO products (name, price, image_url) VALUES (?, ?, ?)",
-                (prod["name"], prod["price"], prod["image_url"])
-            )
+        query = "SELECT player_name, score, timestamp FROM highscores ORDER BY score DESC LIMIT 5"
+        highscores = query_db(query)
+
+        # Format the results as a list of dictionaries for JSON serialization
+        formatted_highscores = []
+        for row in highscores:
+            formatted_highscores.append({
+                'player_name': row[0],
+                'score': row[1],
+                'timestamp': str(row[2])  # Convert timestamp to string for JSON
+            })
+
+        return jsonify(formatted_highscores)
+
     except Exception as e:
-        # Log or handle initialization errors silently in production
-        pass
+        print(f"Error fetching high scores: {e}")
+        return jsonify({'error': 'Failed to retrieve high scores'}), 500
 
-from static.helpers import db
 
-def process_logic(req):
-    rows = db.fetchall("SELECT id, name, price, image_url FROM products")
-    product_list = []
-    for row in rows:
-        product_list.append({
-            "id": row["id"],
-            "name": row["name"],
-            "price": row["price"],
-          “image”: row[\"image_url\"]   # note: quoting uses Unicode straight double quotes
-        })
-    return {"products": product_list}
+@app.route('/api/submit_highscore', methods=['POST'])
+def submit_highscore():
+    """Submits a new high score, validating that it's within reasonable limits."""
+    try:
+        data = request.get_json()
 
-from static.helpers import db
-import json
+        player_name = data.get('player_name')
+        score = data.get('score')
+        timestamp = datetime.now()  # Use the server timestamp
 
-def process_logic(req):
-    # Expect a JSON body with product_id and quantity
-    data = req.get_json() if hasattr(req, "get_json") else {}
-    product_id = data.get("product_id")
-    quantity = data.get("quantity", 1)
+        if not player_name or score is None:
+            return jsonify({'error': 'Player name and score are required'}), 400
 
-    if not product_id or quantity <= 0:
-        return {"error": "Invalid payload"}
+        try:
+            score = int(score)
+        except ValueError:
+            return jsonify({'error': 'Score must be an integer'}), 400
 
-    # Ensure the cart table exists (simple in-memory session would be used in production)
-    db.execute("""CREATE TABLE IF NOT EXISTS cart (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL
-    )""")
+        if score > MAX_SCORE:
+            return jsonify({'error': f'Score is too high. Maximum allowed score is {MAX_SCORE}'}), 400
+            
+        # Insert the new high score into the database
+        query = "INSERT INTO highscores (player_name, score, timestamp) VALUES (?, ?, ?)"
+        execute_db(query, (player_name, score, timestamp))
 
-    existing = db.fetchone("SELECT quantity FROM cart WHERE product_id = ?", (product_id,))
-    if existing:
-        new_qty = existing["quantity"] + quantity
-        db.execute("UPDATE cart SET quantity = ? WHERE product_id = ?", (new_qty, product_id))
-    else:
-        db.execute("INSERT INTO cart (product_id, quantity) VALUES (?, ?)", (product_id, quantity))
+        return jsonify({'message': 'High score submitted successfully'}), 201  # 201 Created
 
-    # Compute total items in cart
-    totals = db.fetchone("SELECT SUM(quantity) as total FROM cart")
-    total_quantity = totals["total"] if totals and totals["total"] else 0
+    except Exception as e:
+        print(f"Error submitting high score: {e}")
+        return jsonify({'error': f'Failed to submit high score: {str(e)}'}), 500
 
-    return {"cart_total": total_quantity}
+
+
+if __name__ == '__main__':
+    app.run(debug=True)  # Use debug=False in production

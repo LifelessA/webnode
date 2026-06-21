@@ -1,6 +1,5 @@
 from nodes.base_node import BaseNode
 from nodes.response import Response
-import sys
 
 class LogicNode(BaseNode):
     """

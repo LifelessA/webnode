@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Ram Traders | Admin Authentication</title>
+    <!-- Google Fonts -->
+
+
+
+    <style>
+        .auth-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 40px;
+            background: rgba(12, 14, 25, 0.65);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header h2 {
+            font-size: 26px;
+            margin-bottom: 8px;
+        }
+
+        .auth-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .auth-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #ea580c 100%);
+            color: #000;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 0 15px 0 40px;
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-wrapper input:focus {
+            border-color: rgba(var(--accent-rgb), 0.4);
+            box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.1);
+        }
+
+        .auth-btn {
+            width: 100%;
+            height: 46px;
+            margin-top: 10px;
+        }
+
+        .auth-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+    
+    <link rel="stylesheet" href="/static/traders.css">
+</head>
+
+<body style="background: var(--bg-dark); overflow: hidden;">
+
+    <!-- Animated Mesh Background Color Blobs -->
+    <div class="mesh-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="blob blob-4"></div>
+    </div>
+
+    <div class="auth-container">
+        <div class="auth-card glass-card">
+
+            <div class="auth-header">
+                <h2><span class="gradient-text">SRI RAM TRADERS</span></h2>
+                <p id="authSubtitle">Admin Console Sign In</p>
+            </div>
+
+            <div class="auth-toggle">
+                <button class="toggle-btn active" id="loginToggle" onclick="switchTab('login')">Sign In</button>
+                <button class="toggle-btn" id="registerToggle" onclick="switchTab('register')">Register</button>
+            </div>
+
+            <div class="auth-error" id="authErrorMsg">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span class="text">Invalid login credentials.</span>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="handleAuthSubmit(event, 'login')">
+                <div class="form-group">
+                    <label for="loginUser">Username</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="loginUser" required placeholder="Enter username">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label for="loginPassword">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="loginPassword" required placeholder="Enter password">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary auth-btn">Sign In</button>
+            </form>
+
+            <!-- Registration Form -->
+            <form id="registerForm" onsubmit="handleAuthSubmit(event, 'register')" style="display: none;">
+                <div class="form-group">
+                    <label for="regUser">New Username</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="regUser" required placeholder="Choose a username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">New Password</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="regPassword" required placeholder="Create password">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label for="regCode">Security Code</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="regCode" required placeholder="Security code config key">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary auth-btn">Create Admin Account</button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Script to manage Forms switching and API calls -->
+    <script>
+        function switchTab(mode) {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const loginToggle = document.getElementById('loginToggle');
+            const registerToggle = document.getElementById('registerToggle');
+            const authSubtitle = document.getElementById('authSubtitle');
+            const errorMsg = document.getElementById('authErrorMsg');
+
+            errorMsg.style.display = 'none';
+
+            if (mode === 'login') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                loginToggle.classList.add('active');
+                registerToggle.classList.remove('active');
+                authSubtitle.textContent = 'Admin Console Sign In';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                loginToggle.classList.remove('active');
+                registerToggle.classList.add('active');
+                authSubtitle.textContent = 'Register New Admin Account';
+            }
+        }
+
+        async function handleAuthSubmit(event, mode) {
+            event.preventDefault();
+            const errorMsg = document.getElementById('authErrorMsg');
+            errorMsg.style.display = 'none';
+
+            let url = '/api/admin/login';
+            let data = {};
+
+            if (mode === 'login') {
+                data = {
+                    username: document.getElementById('loginUser').value,
+                    password: document.getElementById('loginPassword').value
+                };
+            } else {
+                url = '/api/admin/register';
+                data = {
+                    username: document.getElementById('regUser').value,
+                    password: document.getElementById('regPassword').value,
+                    regCode: document.getElementById('regCode').value
+                };
+            }
+
+            try {
+                if (!window.csrfToken) {
+                    const csrfRes = await fetch('/api/csrf', { method: 'GET' });
+                    const csrfData = await csrfRes.json();
+                    window.csrfToken = csrfData.csrf_token;
+                }
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': window.csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (mode === 'login') {
+                        window.location.href = '/admin';
+                    } else {
+                        alert('Registration successful! Please login.');
+                        switchTab('login');
+                        // clear registration inputs
+                        document.getElementById('regUser').value = '';
+                        document.getElementById('regPassword').value = '';
+                        document.getElementById('regCode').value = '';
+                    }
+                } else {
+                    errorMsg.querySelector('.text').textContent = result.error || 'Connection error occurred.';
+                    errorMsg.style.display = 'flex';
+                }
+            } catch (err) {
+                errorMsg.querySelector('.text').textContent = 'Could not reach server. Verify connection.';
+                errorMsg.style.display = 'flex';
+            }
+        }
+    </script>
+</body>
+
+</html>

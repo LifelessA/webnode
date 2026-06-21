@@ -1,10 +1,8 @@
 import http.server
-import socketserver
 import json
 import os
 import sys
 import subprocess
-import socket
 import webbrowser
 import threading
 import urllib.parse
@@ -15,6 +13,24 @@ try:
     ssl._create_default_https_context = ssl._create_unverified_context
 except AttributeError:
     pass
+
+def _disable_quick_edit():
+    """Disables Windows Console/Terminal QuickEdit mode on startup to prevent clicked window freezing."""
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            # Get handle to stdin
+            h = ctypes.windll.kernel32.GetStdHandle(-10) # STD_INPUT_HANDLE = -10
+            if h and h != -1:
+                mode = ctypes.c_uint()
+                if ctypes.windll.kernel32.GetConsoleMode(h, ctypes.byref(mode)):
+                    # Disable ENABLE_QUICK_EDIT_MODE (0x0040) and enable ENABLE_EXTENDED_FLAGS (0x0080)
+                    ctypes.windll.kernel32.SetConsoleMode(h, (mode.value & ~0x0040) | 0x0080)
+                    print("⚡ QuickEdit mode disabled to prevent Windows Terminal click freezes.")
+        except Exception:
+            pass
+
+_disable_quick_edit()
 
 
 # AI Settings Helper Functions

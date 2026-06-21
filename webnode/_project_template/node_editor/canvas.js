@@ -37,7 +37,7 @@ function init() {
 
 // --- Panning & Zooming ---
 canvasContainer.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.node') || e.target.closest('.port')) return;
+    if (e.target.closest('.node') || e.target.closest('.port') || e.target.closest('#wire-disconnect-btn')) return;
     if (e.button === 1 || e.button === 0) {
         isPanning = true;
         startX = e.clientX - panX;
@@ -184,7 +184,7 @@ function deleteWire(wireObj) {
 
 // Keep backward compat for dblclick wire delete
 function deleteWireByPath(pathEl) {
-    const wireObj = wires.find(w => w.path === pathEl);
+    const wireObj = wires.find(w => w.path === pathEl || w.bgPath === pathEl || w.fgPath === pathEl);
     deleteWire(wireObj);
 }
 
@@ -197,7 +197,9 @@ function _createWireDisconnectBtn() {
     btn.id = 'wire-disconnect-btn';
     btn.title = 'Disconnect wire';
     wrap3D(btn, '−');
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
         if (_hoveredWire) {
             deleteWire(_hoveredWire);
             _hoveredWire = null;
@@ -206,7 +208,11 @@ function _createWireDisconnectBtn() {
     });
     // Keep visible while hovering the button itself
     btn.addEventListener('mouseenter', () => { btn.style.display = 'flex'; });
-    btn.addEventListener('mouseleave', () => { btn.style.display = 'none'; _hoveredWire = null; });
+    btn.addEventListener('mouseleave', () => { 
+        btn.style.display = 'none'; 
+        if (_hoveredWire && _hoveredWire.fgPath) _hoveredWire.fgPath.style.stroke = '';
+        _hoveredWire = null; 
+    });
     canvasContainer.appendChild(btn);
 }
 
@@ -225,11 +231,12 @@ function _getBezierMidpoint(x1, y1, x2, y2) {
 }
 
 function bindWireHover(wireObj) {
-    const path = wireObj.path;
+    const path = wireObj.bgPath || wireObj.path;
     path.style.pointerEvents = 'stroke';
     path.style.cursor = 'pointer';
 
     path.addEventListener('mouseenter', () => {
+        if (wireObj.fgPath) wireObj.fgPath.style.stroke = '#b91c1c';
         _hoveredWire = wireObj;
         const btn = document.getElementById('wire-disconnect-btn');
         if (!btn) return;
@@ -245,9 +252,10 @@ function bindWireHover(wireObj) {
     });
 
     path.addEventListener('mouseleave', (e) => {
-        // Don't hide if moving to the button itself
+        // Don't hide if moving to the button itself or its children
         const btn = document.getElementById('wire-disconnect-btn');
-        if (btn && e.relatedTarget === btn) return;
+        if (btn && (e.relatedTarget === btn || btn.contains(e.relatedTarget))) return;
+        if (wireObj.fgPath) wireObj.fgPath.style.stroke = '';
         if (btn) btn.style.display = 'none';
         _hoveredWire = null;
     });
@@ -624,16 +632,31 @@ function drawTempWire(mouseX, mouseY) {
 }
 
 function createWire(fromPort, toPort) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.classList.add('wire-group');
+
+    const bgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    bgPath.classList.add('wire-bg');
+    bgPath.style.strokeWidth = "20";
+    bgPath.style.stroke = "transparent";
+    bgPath.style.fill = "none";
+
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.classList.add('wire');
-    wireLayer.appendChild(path);
+    path.style.pointerEvents = "none";
+
+    group.appendChild(bgPath);
+    group.appendChild(path);
+    wireLayer.appendChild(group);
 
     const wireObj = {
         sourceNode: fromPort.dataset.node,
         sourcePort: fromPort.dataset.port,
         targetNode: toPort.dataset.node,
         targetPort: toPort.dataset.port,
-        path: path,
+        path: group,
+        bgPath: bgPath,
+        fgPath: path,
         fromEl: fromPort,
         toEl: toPort
     };
@@ -653,7 +676,11 @@ function updateAllWires() {
 function drawBezier(pathEl, x1, y1, x2, y2) {
     const curvature = Math.abs(x2 - x1) * 0.5;
     const d = `M ${x1} ${y1} C ${x1 + curvature} ${y1}, ${x2 - curvature} ${y2}, ${x2} ${y2}`;
-    pathEl.setAttribute('d', d);
+    if (pathEl.tagName && pathEl.tagName.toLowerCase() === 'g') {
+        pathEl.childNodes.forEach(child => child.setAttribute('d', d));
+    } else {
+        pathEl.setAttribute('d', d);
+    }
 }
 
 // --- Graph Serialization & Deserialization ---
@@ -855,8 +882,10 @@ async function loadGraphJSON() {
                         '.is-write-input'
                     ).checked = config.isWrite;
             } else if (type === 'RenderNode') {
-                if (config.filename)
-                    nodeEl.querySelector('.filename-input').value = config.filename;
+                if (config.filename) {
+                    const fileInp = nodeEl.querySelector('.node-file-input');
+                    if (fileInp) fileInp.value = config.filename;
+                }
                 if (config.html_code) {
                     _setMonacoValueWithRetry(nodeEl, config.html_code, 'html');
                 }
@@ -879,8 +908,10 @@ async function loadGraphJSON() {
                     _setMonacoValueWithRetry(nodeEl, config.code, lang);
                 }
             } else if (type === 'CSSNode') {
-                if (config.css_filename)
-                    nodeEl.querySelector('.css-filename-input').value = config.css_filename;
+                if (config.css_filename) {
+                    const fileInp = nodeEl.querySelector('.node-file-input');
+                    if (fileInp) fileInp.value = config.css_filename;
+                }
                 if (config.css_code) {
                     _setMonacoValueWithRetry(nodeEl, config.css_code, 'css');
                 }
@@ -1069,7 +1100,8 @@ function extractGraphJSON() {
         } else if (type === 'URLNode') {
             config.path = nodeEl.querySelector('.path-input').value;
         } else if (type === 'RenderNode') {
-            config.filename = nodeEl.querySelector('.filename-input').value;
+            const fileInp = nodeEl.querySelector('.node-file-input');
+            config.filename = fileInp ? fileInp.value : (fallback.filename || '');
             if (nodeEl._monacoEditor) {
                 config.html_code = nodeEl._monacoEditor.getValue();
             } else {
@@ -1095,7 +1127,8 @@ function extractGraphJSON() {
                 config.code = fallback.code || '';
             }
         } else if (type === 'CSSNode') {
-            config.css_filename = nodeEl.querySelector('.css-filename-input').value;
+            const fileInp = nodeEl.querySelector('.node-file-input');
+            config.css_filename = fileInp ? fileInp.value : (fallback.css_filename || '');
             if (nodeEl._monacoEditor) {
                 config.css_code = nodeEl._monacoEditor.getValue();
             } else {
@@ -1317,13 +1350,20 @@ function resetAIUIState() {
     const overlay = document.getElementById('ai-loading-overlay');
     const statusText = document.getElementById('ai-status-text');
 
-    btn.innerHTML = '✨ Generate';
-    btn.style.backgroundColor = '';
-    btn.style.borderColor = '';
+    if (btn) {
+        btn.innerHTML = `<svg class="send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>`;
+        btn.style.background = 'linear-gradient(to right, #2563eb, #3b82f6)';
+        btn.style.borderColor = '';
+    }
     
-    promptInput.disabled = false;
-    overlay.style.display = 'none';
-    statusText.style.display = 'none';
+    if (promptInput) promptInput.disabled = false;
+    if (overlay) overlay.style.display = 'none';
+    if (statusText) {
+        statusText.style.display = 'inline-block';
+        statusText.innerText = 'Ready';
+        statusText.style.color = '#a1a1aa';
+        statusText.style.animation = 'none';
+    }
 }
 
 function stripMarkdown(codeStr) {
@@ -1354,12 +1394,19 @@ async function generateFullscreenCode() {
     aiGenerationController = new AbortController();
     
     // UI Updates
-    btn.innerHTML = '⏸ Stop';
-    btn.style.backgroundColor = '#ef4444';
-    btn.style.borderColor = '#b91c1c';
-    promptInput.disabled = true;
-    overlay.style.display = 'flex';
-    statusText.style.display = 'none';
+    if (btn) {
+        btn.innerHTML = `<svg class="send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+        btn.style.background = 'linear-gradient(to right, #ef4444, #dc2626)';
+        btn.style.borderColor = '#b91c1c';
+    }
+    if (promptInput) promptInput.disabled = true;
+    if (overlay) overlay.style.display = 'flex';
+    if (statusText) {
+        statusText.style.display = 'inline-block';
+        statusText.innerText = 'Generating...';
+        statusText.style.color = '#00d2ff';
+        statusText.style.animation = 'pulse 1.5s infinite';
+    }
 
     let currentCode = '';
     if (fullscreenEditorInstance) {
@@ -1411,7 +1458,7 @@ async function generateFullscreenCode() {
             if (!firstChunkReceived) {
                 firstChunkReceived = true;
                 overlay.style.display = 'none';
-                statusText.style.display = 'block';
+                if (statusText) statusText.style.display = 'inline-block';
             }
 
             const chunk = decoder.decode(value, { stream: true });
@@ -1495,6 +1542,18 @@ async function generateFullscreenCode() {
 }
 
 // --- AI PROVIDER SETTINGS CONTROLLER ---
+function updateActiveModelBadge() {
+    const badge = document.getElementById('active-model-badge');
+    const providerSelect = document.getElementById('provider-select');
+    if (badge && providerSelect) {
+        const provider = providerSelect.value;
+        const modelInput = document.getElementById('model-' + provider);
+        let modelName = modelInput ? modelInput.value : provider;
+        if (!modelName) modelName = provider;
+        badge.innerText = modelName.length > 20 ? modelName.substring(0, 17) + '...' : modelName;
+    }
+}
+
 function toggleProviderFields() {
     const selectedProvider = document.getElementById('provider-select').value;
     document.querySelectorAll('.provider-fields-group').forEach(group => {
@@ -1504,7 +1563,35 @@ function toggleProviderFields() {
             group.style.display = 'none';
         }
     });
+    updateActiveModelBadge();
 }
+
+// Add event listeners to input fields to update badge dynamically
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[id^="model-"]').forEach(input => {
+        input.addEventListener('input', updateActiveModelBadge);
+    });
+    
+    // Initial fetch of settings to populate the DOM and update the AI badge
+    fetch('/api/settings/load')
+        .then(res => res.json())
+        .then(data => {
+            const providerSelect = document.getElementById('provider-select');
+            if(providerSelect) {
+                providerSelect.value = data.SELECTED_AI_PROVIDER || 'ollama';
+                if(document.getElementById('model-' + providerSelect.value)) {
+                     const key = providerSelect.value === 'gpt' ? 'OPENAI_MODEL' :
+                                providerSelect.value === 'gemini' ? 'GEMINI_MODEL' :
+                                providerSelect.value.toUpperCase() + '_MODEL';
+                     if(data[key]) {
+                         document.getElementById('model-' + providerSelect.value).value = data[key];
+                     }
+                }
+            }
+            toggleProviderFields();
+        })
+        .catch(err => console.error('Failed to load initial settings', err));
+});
 
 function openSettings() {
     fetch('/api/settings/load')
@@ -1631,7 +1718,7 @@ async function testAPIConnection() {
 
     apiTestController = new AbortController();
     outputArea.value = '';
-    testBtn.innerHTML = 'Testing...';
+    wrap3D(testBtn, 'Testing...');
     testBtn.disabled = true;
 
     try {
@@ -1670,114 +1757,12 @@ async function testAPIConnection() {
             outputArea.value = "Error: " + err.message;
         }
     } finally {
-        testBtn.innerHTML = '🔌 Test API';
+        wrap3D(testBtn, '🔌 Test API');
         testBtn.disabled = false;
         apiTestController = null;
     }
 }
 
-// --- MASTER ARCHITECT ENGINE ---
-async function runMasterArchitect() {
-    const promptInput = document.getElementById('master-architect-prompt');
-    const prompt = promptInput.value.trim();
-    if (!prompt) return;
-
-    const btn = document.getElementById('btn-master-architect');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span>⏳</span> Thinking...';
-    btn.disabled = true;
-
-    try {
-        const response = await fetch('/api/ai/architect', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt })
-        });
-        
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(errText);
-        }
-
-        const data = await response.json();
-        if (data.status === 'error') {
-            throw new Error(data.message);
-        }
-
-        // Clear canvas
-        clearCanvas();
-        
-        // Render graph (reusing load logic but manually simulating it)
-        const nodesData = data.graph.nodes || [];
-        const connsData = data.graph.connections || [];
-        
-        nodesData.forEach(n => {
-            const nodeEl = createNode(n.type, n.x, n.y, n.id);
-            if (n.config) {
-                // Wait for monaco
-                setTimeout(() => {
-                    if (n.config.code && nodeEl._monacoEditor) {
-                        nodeEl._monacoEditor.setValue(n.config.code);
-                    } else if (n.config.html_code && nodeEl._monacoEditor) {
-                        nodeEl._monacoEditor.setValue(n.config.html_code);
-                    } else if (n.config.css_code && nodeEl._monacoEditor) {
-                        nodeEl._monacoEditor.setValue(n.config.css_code);
-                    }
-                    if (n.config.filename) {
-                        const fileInput = nodeEl.querySelector('.node-file-input');
-                        if (fileInput) fileInput.value = n.config.filename;
-                    }
-                }, 500);
-            }
-        });
-
-        // Store context instructions on nodes BEFORE adding connections
-        setTimeout(() => {
-            if (data.instructions) {
-                for (const [nodeId, instruction] of Object.entries(data.instructions)) {
-                    const el = document.getElementById(nodeId);
-                    if (el) {
-                        el.dataset.aiInstruction = instruction;
-                    }
-                }
-            }
-        }, 50);
-
-        // Auto-trigger TemplateNode explicitly since it might not be a target of a connection
-        setTimeout(() => {
-            const templateNodes = document.querySelectorAll('.node[data-type="RenderNode"], .node[data-type="TemplateNode"]');
-            templateNodes.forEach(node => {
-                if (node.dataset.aiInstruction) {
-                    const instruction = node.dataset.aiInstruction || `Generate HTML for: ${prompt}`;
-                    node.dataset.aiInstruction = ''; // clear
-                    enqueueAIGeneration(node, instruction);
-                }
-            });
-        }, 100);
-
-        // Add connections (which will now trigger the interceptor because instructions are already set)
-        // These will be appended to the AI Generation Queue AFTER the Template Node
-        setTimeout(() => {
-            connsData.forEach(c => {
-                const sourceNode = document.getElementById(c.source);
-                const targetNode = document.getElementById(c.target);
-                if (sourceNode && targetNode) {
-                    const sourcePort = sourceNode.querySelector('.port-out');
-                    const targetPort = targetNode.querySelector('.port-in');
-                    if (sourcePort && targetPort) {
-                        createWire(sourcePort, targetPort);
-                    }
-                }
-            });
-        }, 200);
-
-    } catch (err) {
-        alert('Architecture Generation Error: ' + err.message);
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}
 
 let aiGenerationQueue = [];
 let isQueueGenerating = false;

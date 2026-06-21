@@ -1,0 +1,770 @@
+Total paragraphs: 768
+
+[1] “HEARTGUARD AI: A MACHINE LEARNING APPROACH TO CARDIAC HEALTH ANALYSIS”
+[2] MINOR PROJECT REPORT
+[3] SUBMITTED IN PARTIAL FULFILMENT OF THE REQUIREMENTS FOR THE DEGREE OF
+[4] MASTER OF COMPUTER APPLICATION
+[5] BY
+[6] ANIKET RAJ
+[7] 120710242024
+[8] HIMANSHU KUMAR
+[9] 120710242041
+[10] UNDER THE GUIDANCE OF
+[11] PROF. DEBASIS GUHA, ASSISTANT PROFESSOR, DEPARTMENT OF COMPUTER APPLICATION, BCREC.
+[12] DR. B. C. ROY ENGINEERING COLLEGE
+[13] Fuljhore, Jemua Road, Durgapur — 713206 
+[14] West Bengal, India
+[15] 2024 - 2026
+[16]   To Whom It Mav Be Concern
+[17] This is to certify that, Aniket Raj  Roll No: 120710242024,  Himanshu Kumar  Roll No: 120710242041, students of 2‘d year, third semester in the Department of Computer Applications [2024 — 2026], Dr. B. C. Roy Engineering College, Durgapur — 713206, worked on the minor project entitled.
+[18] “HEARTGUARD AI: A MACHINE LEARNING APPROACH TO CARDIAC HEALTH ANALYSIS”
+[19] They have worked sincerely, dedicatedly and enthusiastically under my supervision. To the best of my knowledge, this is an original and technically accurate work. I hereby recommend that the report prepared by them may be accepted as partial fulfilment of the requirement for the degree of Master of Computer Application (MCA) from Dr. B. C. Roy Engineering College, West Bengal.
+[20] Prof. Dabasis Guha
+[21] Assistant Professor,
+[22] Department of Computer Applications
+[23] Dr. B. C. Roy Engineering College, Durgapur Forwarded by:
+[24] Prof. (Dr.) Pabitra Kumar Dey
+[25] Head, Department of Computer Applications Dr. B. C. Roy Engineering College, Durgapur
+[26] Declaration
+[27] I, Aniket Raj and Himanshu kumar, the undersigned student of the Department of Computer Applications at Dr. B. C. Roy Engineering college, hereby declare that I have developed a minor project titled "Heart Guard AI: A Machine Learning Approach to Cardiac Health Analysis."
+[28] This project aims to revolutionize early cardiac detection by leveraging Machine Learning algorithms (K-Nearest Neighbors) to analyze patient vitals and predict heart disease risk with high precision.
+[29] I have developed this application as part of my academic curriculum, utilizing my knowledge in Python, Machine Learning (Scikit-Learn), and Full-Stack Web Development (Stream lit). I have followed ethical practices and adhered to all relevant guidelines and regulations during the development process.
+[30] I hereby declare that this project is the result of my original work and efforts. I take full responsibility for the authenticity and integrity of the source code and the data analysis presented herein.
+[31] …………………………….
+[32] Student Name: Aniket Raj
+[33] Roll No: 120710242024
+[34] Registration No.: 241200510024(2024-2025)
+[35] ………………………………
+[36] Student Name: Himanshu Kumar
+[37] Roll No:120710242041
+[38] Registration No.: 241200510041(2024-2025)
+[39] Acknowledgement
+[40] No work is possible due to the efforts of one or a few individuals. This project is no exception. I am immensely grateful to many people for their invaluable help and support without which it would not have been possible to prepare this Technical Project Report Working on this technical project on “Heart Guard AI” was a source of immense knowledge to me.
+[41] I acknowledge with thanks the kind of patronage, loving inspiration, and timely guidance, which I have received from my project supervisor Assistant professor Debasis Guha. Without his kind direction and proper guidance this technical report would have been little success. In every phase of this report his supervision and guidance, shaped this report to be completed successfully. I would also like to thank Assistant professor Ansuman Mahanty, for his extensive support in shaping this project to be a successful one.
+[42] I also wish to express my deep sense of gratitude to our departmental professors, seniors and friends who rendered their help during the period of this technical project.
+[43] Student Name: Aniket Raj
+[44] Roll No: 120710242024
+[45] Registration No.: 241200510024(2024-2025)
+[46] Student Name: Himanshu Kumar
+[47] Roll No:120710242041
+[48] Registration No.: 241200510041(2024-2025)
+[49] Abstract
+[50] Cardiovascular Diseases (CVDs) remain the leading cause of global mortality, underscoring the urgent need for accessible, non-invasive early detection methods to mitigate risks effectively. Addressing the limitations of expensive and time-consuming traditional diagnostics, this project introduces Heart Guard AI, a sophisticated web-based tool designed to predict heart disease likelihood using the K-Nearest Neighbors (KNN) algorithm. Distinguishing itself from static models, the system incorporates a dynamic "Smart BMI" feature that adjusts health metrics based on specific age demographics—ranging from children to the elderly—to ensure personalized risk assessment. Trained on the UCI Heart Disease dataset with optimized hyperparameters, including a k-value of 5 and Euclidean distance, the model achieves a robust testing accuracy of 90.16%. The application is developed using Streamlit to offer a user-friendly interface, delivering real-time visualizations through Radar charts and Risk Gauges, while automatically generating comprehensive JSON and text reports. By utilizing standard scaling and distance-weighted classification, Heart Guard AI exemplifies the effective integration of medical science and machine learning, providing a scalable, high-precision solution for preliminary cardiac health screening.
+[51] TABLE OF CONTENTS
+[52] 1: INTRODUCTION…………………………………………………………………….7-8
+[53] 1.2 Limitation of Existing Systems………………………………………………….8
+[54] 2: THEORETICAL FOUNDATION……………………………………………………9-11
+[55] 2.1 Introduction to Machine Learning………………………………………………9
+[56] 2.2 K-Nearest Neighbors (KNN) Algorithm……………………………………….9
+[57] 2.3 Mathematics of Euclidean Distance……………………………………………10
+[58] 2.4 Data Normalization (Z-Score Scaling) …………………………………………11
+[59] 3: SYSTEM ANALYSIS & DESIGN………………………………………………….12-15
+[60] 3.1 Requirement Analysis………………………………………………………….12
+[61] 3.2 Object-Oriented Architecture………………………………………………….13
+[62] 3.3 Data Flow Diagrams (DFD) …………………………………………………...14-15
+[63] 4: DATASET & PREPROCESSING………………………………………………….16-18
+[64] 4.1 UCI Cleveland Dataset Overview…………………………………………….16
+[65] 4.2 Exploratory Data Analysis (Feature Engineering) …………………………...16-17
+[66] 4.3 Splitting Strategy (Train/Test) ……………………………………………….18
+[67] 5: THE "SMART BMI" WORKING……………………………………………….19-22
+[68] 5.1 Limitations of Quetelet's Index (Standard BMI) …………………………..…19
+[69] 5.2 Developing the Age-Aware Logic…………………………………………….19-20
+[70] 5.3 Implementation Details……………………………………………………….21-22
+[71] 6: RESULT ANALYSIS……….……………………………………………………….23-26
+[72] 6.1 Hyperparameter Tuning………………………………………………………...23
+[73] 6.2 Confusion Matrix Analysis……………………………………………………...24
+[74] 6.3 ROC Curve & AUC Score……………………………………………………...24
+[75] 6.4 Feature Importance Analysis…………………………………………………...25-26
+[76] 7: USER MANUAL & DEPLOYMENT……………………………………………….27-30
+[77] 7.1 Installation Guide……………………………………………………………….27
+[78] 7.2 Configuration & Setup………………………………………………………….28
+[79] 7.3 Operational Workflow………………………………………………………….29
+[80] 7.4 Interpreting Medical Reports……………………………………………………30
+[81] 8:  APPENDIX…………………………………………………………………………31-36
+[82] 8.1Sample Output…………………………………………………………………31-32
+[83] 8.2 Sample code……………………………………………………………………33-36
+[84] 9:  CONCLUSION & FUTURE SCOPE……………………………………………37-38
+[85] 9.1 Conclusion…………………………………………………………………...37
+[86] 9.2 Future Scope………………………………………………………………....38
+[87] 10:  BIBLOGRAPHY…………………………………………………………………39
+[88] Introduction:
+[89] Heart GuardAI is an advanced web-based diagnostic tool for preliminary heart disease risk assessment. It uses a K-Nearest Neighbors (KNN) machine learning classifier to analyze 13 standard clinical and physiological risk factors, providing personalized, probabilistic risk scores. Built using Python (Streamlit, Scikit-learn, Plotly), the application transforms complex data into actionable insights through dynamic visualizations like the Risk Gauge. Drawing its foundation from the UCI Heart Disease Dataset, Heart GuardAI's core mission is to promote early detection and proactive health management by offering clear, contextual feedback.
+[90] Cardiac Health Related Issues: Cardiovascular diseases (CVDs) are the leading cause of global mortality, encompassing a range of conditions like coronary artery disease, stroke, and heart failure. These conditions often develop silently and are heavily influenced by lifestyle factors and physiological metrics such as hypertension, high cholesterol, and diabetes. Early detection and risk stratification are crucial for effective intervention and improved patient outcomes.
+[91] People Affected by Cardiac Problems: Cardiac problems affect a vast and diverse global population, with significant variation based on geography, socioeconomic status, and genetics. While often associated with the elderly, CVDs are increasingly prevalent in younger adults due to rising rates of obesity and sedentary lifestyles. Understanding the high-risk demographic is essential for targeted preventative health campaigns.
+[92] UI Interface of the Project: The project's user interface (UI), built with Streamlit, is designed for maximum clarity and accessibility. The main dashboard features an intuitive input form for the 13 clinical parameters, leading directly to the results page, which prominently displays a speedometer-style Risk Gauge and dynamic Plotly visualizations. This design prioritizes immediate, understandable feedback over raw, complicated data tables.
+[93]  Motivation Toward Your Project: The motivation for Heart GuardAI stems from the critical gap between raw clinical data and public understanding of personalized risk. By leveraging a robust ML model and translating its output into clear, actionable visual insights, the project aims to empower users to take proactive control of their cardiac health and facilitate more informed, earlier conversations with healthcare providers.
+[94] 1.2: Limitations of existing system:
+[95] While Heart Guard AI demonstrates the effective application of machine learning in health screening, it is subject to certain limitations inherent to its design, data source, and intended scope of use. Recognizing these constraints is crucial for the proper interpretation and application of its results.
+[96] Dataset Dependency and Generalizability: The predictive model is trained exclusively on the UCI Heart Disease dataset. This dataset, while a standard benchmark, is relatively small and geographically confined to a specific historical patient population. Consequently, the model's predictions may not fully generalize to individuals from diverse ethnic backgrounds, younger demographics not represented in the training data, or populations with different environmental risk factors. The model's accuracy is bounded by the patterns present within this specific dataset.
+[97] Screening Tool, Not a Diagnostic Device: Heart Guard AI is designed as a preliminary screening and educational tool. It provides a probabilistic risk assessment based on statistical correlations found in data. It does not offer a definitive medical diagnosis. The results, including the risk classification and automated recommendations, must not be interpreted as a substitute for professional medical advice, comprehensive clinical testing, or the judgment of a qualified cardiologist.
+[98] Reliance on Accurate Input Data: The accuracy of the prediction is entirely dependent on the precision of the data provided by the user. The system relies on manual entry of sensitive clinical metrics such as serum cholesterol, ST depression induced by exercise, and fluoroscopy results. Any inaccuracy, subjective interpretation in self-reporting (e.g., chest pain type), or measurement errors in these inputs will directly compromise the validity of the generated risk assessment.
+[99] Model Interpretability vs. Predictive Power: The project utilizes the K-Nearest Neighbors (KNN) algorithm, which makes predictions based on local similarity to historical cases rather than learning a global, interpretable formula for heart disease. While feature importance analysis is provided to offer some insight, the inherent "black box" nature of many non-parametric machine learning models means the exact rationale for a specific prediction can sometimes be difficult to fully explicate in clinically meaningful terms.
+[100] 2: THEORETICAL FOUNDATION
+[101] 2.1 Introduction to Machine Learning in Healthcare
+[102] Machine Learning (ML) is a subset of artificial intelligence that focuses on developing systems capable of learning from data, identifying patterns, and making decisions with minimal human intervention. In the context of the Heart Guard AI project, we utilize Supervised Learning, a paradigm where the model is trained on a labeled dataset.
+[103] The core objective of this project is Binary Classification. The system analyzes a set of input features (such as Age, Cholesterol, and Resting ECG) to classify a patient into one of two distinct categories:
+[104] Target 0: Low risk of heart disease.
+[105] Target 1: High risk/Presence of heart disease.
+[106] The application leverages the computational power of modern processors to perform these classifications instantly, a task that would otherwise require manual calculation of complex risk scores by medical professionals. By automating this via the Heart Disease Predictor class, we achieve consistent and rapid diagnostic support.
+[107] 2.2 The K-Nearest Neighbors (KNN) Algorithm
+[108] The core engine of Heart Guard AI is the K-Nearest Neighbors (KNN) algorithm. KNN is a non-parametric, instance-based learning algorithm. It is often referred to as a "lazy learner" because it does not learn a discriminative function from the training data during the training phase. Instead, it memorizes the training dataset and performs the computation only during the prediction phase.
+[109] How KNN works in Heart Guard AI:
+[110] When a new patient profile is entered into the Streamlit interface, the algorithm performs the following steps:
+[111] Mapping: It plots the new patient's data point in a multi-dimensional feature space (13 dimensions corresponding to the 13 input features like 'age', 'sex', 'cp', etc.).
+[112] Distance Calculation: It calculates the distance between this new patient and every other patient in the historical dataset (UCI.csv).
+[113] Neighbor Selection: It identifies the K nearest data points (neighbors). In our implementation, the hyperparameter is set to K=5 (n_neighbors=5).
+[114] Voting: It looks at the classes (Target 0 or 1) of these 5 neighbors. Since our model uses weights='distance', closer neighbors have a greater influence on the vote than those further away.
+[115] Prediction: The class with the highest weighted vote is assigned to the new patient.
+[116] 2.3 Mathematics of Euclidean Distance
+[117] To determine which historical patient profiles are "closest" to the current user, a mathematical metric for distance is required. The Heart Disease Predictor class explicitly utilizes the Euclidean Distance metric.
+[118] The General Formula:
+[119] In a 2-dimensional space, the distance between two points (x1, y1) and (x2, y2) is calculated using the Pythagorean theorem. However, our dataset operates in a 13-dimensional hyperspace.
+[120] For two patients P (the new user) and Q (a record in the database), each having n features (where n=13), the Euclidean distance d(P, Q) is defined as:
+[121] Where:
+[122] Pi is the value of the i-th feature for the new patient (e.g., their Cholesterol level).
+[123] Qi is the value of the i-th feature for the historical record.
+[124] Context in Project:
+[125] In the test.py file, this calculation is handled internally by the Scikit-Learn library when the model. Predict() or model. predict_proba() functions are called. The algorithm computes this distance for all rows in the dataset to find the minimal values, ensuring the prediction is based on the most mathematically similar medical cases.
+[126] 2.4 Data Normalization (Z-Score Scaling)
+[127] One of the most critical theoretical components implemented in this project is Feature Scaling. The dataset contains features with vastly different magnitudes.
+[128] Age: Range 29–77.
+[129] Cholesterol: Range 126–564.
+[130] Old peak (ST Depression): Range 0.0–6.2.
+[131] If we apply the Euclidean distance formula directly to raw data, the Cholesterol feature (due to its large numerical value) would dominate the distance calculation, rendering smaller but critical features like Old peak insignificant. To prevent this bias, we implement Standardization (Z-Score Normalization).
+[132] The Mathematical Formula:
+[133] We transform every feature value x into a standardized score z:
+[134] Where:
+[135] x is the original feature value.
+[136] µ(mu) is the mean (average) of that feature in the training set.
+[137] σ (sigma) is the standard deviation of that feature.
+[138] Implementation:
+[139] In the project code (test.py), this is implemented using the StandardScaler from the Scikit-Learn library:
+[140] Initialization: self.scaler = StandardScaler().
+[141] Fitting: X_train_scaled = self.scaler.fit_transform(X_train) calculates \mu and \sigma for all 13 features.
+[142] Transformation: When a user inputs data via the web form, it is converted into a list (patient_profile.to_feature_list()) and immediately scaled using self.scaler.transform([features]) before being passed to the KNN model.
+[143] This ensures that a difference of 1.0 in "ST Depression" is treated with the same mathematical importance as a difference of 50 in "Cholesterol," resulting in a fair and accurate prediction model.
+[144] 3: SYSTEM ANALYSIS & DESIGN
+[145] 3.1 Requirement Analysis
+[146] The development of Heart Guard AI was driven by the critical need for accessible, accurate, and rapid cardiac health assessment. The system requirements were categorized into Functional and Non-Functional requirements to ensure a robust software solution.
+[147] 3.1.1 Functional Requirements These requirements define the specific behaviors and functions the system must support, as implemented in the HeartGuardApp class.
+[148] Patient Data Input: The system must accept comprehensive patient vitals including Age, Sex, Weight, Height, Chest Pain Type (CP), Resting Blood Pressure (Trestbps), Cholesterol, Fasting Blood Sugar, and Resting ECG.
+[149] Smart BMI Calculation: The system must dynamically calculate Body Mass Index (BMI) and categorize it based on age groups (Child,Teen,Adult,Elderly) using the PatientProfile.calculate_bmi() method.
+[150] Risk Prediction: The system must predict the binary risk classification (High Risk vs. Low Risk) using the K-Nearest Neighbors algorithm.
+[151] Report Generation: The system must generate downloadable reports in both JSON (create_json) and Text (create_text) formats, detailing the patient's condition and providing actionable recommendations.
+[152] Visual Analytics: The system must render interactive visualizations, including Risk Gauges, Feature Importance Bar Charts, and BMI comparative graphs.
+[153] 3.1.2 Non-Functional Requirements
+[154] Accuracy: The model must achieve a prediction accuracy of at least 90% on the testing dataset. (Achieved: 90.16% as per experimental results).
+[155] Performance: The system must provide real-time predictions (< 2 seconds) upon clicking the "Analyze Risk" button.
+[156] Usability: The interface must be responsive and theme-aware (Light/Dark mode) to accommodate different user preferences.
+[157] Scalability: The architecture must allow for easy swapping of the underlying machine learning model (e.g., from KNN to Random Forest) without rewriting the frontend code.
+[158] 3.2 Object-Oriented Architecture
+[159] The project adopts a modular Object-Oriented Programming (OOP) approach, ensuring code reusability and maintainability. The core logic is encapsulated within five distinct classes defined in test.py.
+[160] 3.2.1 Class: Patient Profile This class acts as a data transfer object (DTO) that encapsulates all patient-specific attributes.
+[161] Attributes: age, sex, weight_kg, height_cm, medical_data (dictionary of clinical features).
+[162] Key Methods:
+[163] calculate_bmi(): Implements complex logic to determine BMI categories based on age thresholds (e.g., <19 years for children/teens, >65 years for elderly).
+[164] to_feature_list(): Converts the object's attributes into a standard list format [age, sex, cp, ...] required by the Scikit-Learn model.
+[165] 3.2.2 Class: HeartDiseasePredictor This class manages the Machine Learning lifecycle.
+[166] Attributes: model (KNeighborsClassifier), scaler (StandardScaler), feature names.
+[167] Key Methods:
+[168] train(data): Handles data splitting, standardization, and model fitting. It saves the trained model to heart_disease_model.joblib for persistence.
+[169] predict(patient_profile): Accepts a Patient Profile object, scales the features using the saved scaler, and returns a prediction dictionary containing the risk label and probability confidence.
+[170] 3.2.3 Class: Visualizer This class handles all graphical outputs using the Plotly library.
+[171] Key Methods:
+[172] plot_risk_gauge(probability): Draws a gauge chart showing the risk percentage (0-100%) with color-coded steps (Green, Yellow, Red).
+[173] plot_feature_importance(importance_dict): Visualizes which medical factors contributed most to the diagnosis.
+[174] 3.2.4 Class: Report Generator This static utility class formats the analysis results into user-readable documents.
+[175] Key Methods:
+[176] generate_recommendations(): Contains rule-based logic (e.g., "If cholesterol > 200, recommend management") to personalize advice.
+[177] create text(): Assembles the timestamp, patient info, and recommendations into a formatted string for the .txt download.
+[178] 3.2.5 Class: HeartGuardApp The main controller class that ties the frontend (Streamlit) to the backend logic.
+[179] Responsibilities: Renders the sidebar, manages session state (Theme toggling), captures user input from forms, and orchestrates the prediction flow.
+[180] 3.3 Data Flow Diagrams (DFD)
+[181] To understand how data moves through the Heart Guard AI system, we analyze the input-process-output cycles.
+[182] 3.3.1 Level 0 DFD (Context Diagram)
+[183] External Entity (User): inputs clinical data (Age, CP, Chol, etc.) via the Web Interface.
+[184] Process (Heart Guard AI System): Accepts data, processes it through the ML engine, and visualizes results.
+[185] Output: The system returns a Risk Prediction (High/Low), a Probability Score, and a Downloadable Report to the User.
+[186] 3.3.1.1 Level 0 DFD (Context Diagram)
+[187] 3.3.2 Level 1 DFD (Process Decomposition) The internal data flow consists of four distinct stages:
+[188] Data Ingestion:
+[189] User inputs data into Streamlit widgets.
+[190] Data is captured by the HeartGuardApp and instantiated into a Patient Profile object.
+[191] Preprocessing (Transformation):
+[192] Patient Profile converts data into a raw feature list.
+[193] The StandardScaler (inside Heart Disease Predictor) transforms the raw features into Z-scores. For example, a cholesterol value of 240 might become 0.85.
+[194] Inference (Prediction):
+[195] The transformed vector is passed to the KNeighborsClassifier.
+[196] The model calculates Euclidean distances to the nearest 5 neighbors in the 13-dimensional training space.
+[197] A weighted vote determines the final class (0 or 1) and the probability (e.g., 0.85 confidence).
+[198] Presentation & Export:
+[199] The prediction result is sent to the Visualizer to generate the Risk Gauge.
+[200] The result is sent to the Report Generator to create the JSON/Text files.
+[201] Streamlit renders these assets back to the user's browser.
+[202] 3.3.2.1 Level 1 DFD (Process Decomposition)
+[203]    4: DATASET & PREPROCESSING
+[204] 4.1 UCI Cleveland Dataset Overview
+[205] The foundation of the Heart Guard AI prediction engine is the Heart Disease Data Set from the UCI Machine Learning Repository. Specifically, we utilized the Cleveland database, which is the most widely recognized benchmark for heart disease classification in the research community.
+[206] This dataset contains patient records collected from the Cleveland Clinic Foundation. While the original database contained 76 attributes, all published experiments and our implementation rely on a subset of 14 distinct attributes—13 independent clinical variables (features) and 1 target variable (diagnosis).
+[207] Dataset Specifications:
+[208] Source: UCI Machine Learning Repository (Cleveland Database)
+[209] Total Records: 303 Patient Records
+[210] Feature Count: 13 Clinical Attributes (Independent Variables)
+[211] Target Class: Binary (0 = No Disease, 1 = Disease Presence)
+[212] Missing Values: The dataset was pre-cleaned, with 0 rows dropped during the loading phase.
+[213] 4.2 Feature Dictionary (Exploratory Data Analysis)
+[214] To understand the medical logic behind the model's predictions, it is essential to define each feature. The following table details the 13 input parameters processed by the HeartDiseasePredictor class.
+[215] Table 4.1: Clinical Feature Specifications
+[216] Feature Name
+[217] Type
+[218] Description
+[219] Value Range / Encoding
+[220] Age
+[221] Continuous
+[222] Age of the patient in years.
+[223] 29 to 77 years
+[224] Sex
+[225] Categorical
+[226] Biological sex of the patient.
+[227] 1 = Male}, 0 = Female
+[228] CP
+[229] Categorical
+[230] Chest Pain type experienced.
+[231] 0 = Typical Angina
+[232] 1 = Atypical Angina
+[233] 2 = Non-anginal Pain
+[234] 3 = Asymptomatic
+[235] Trestbps
+[236] Continuous
+[237] Resting blood pressure (in mm Hg) on admission to the Hospital 
+[238] 94 to 200 mm Hg
+[239] Chol
+[240] Continuous
+[241] Serum cholesterol in mg/dl.
+[242] 126 to 564 mg/dl
+[243] FBS
+[244] Categorical
+[245] Fasting blood sugar > 120 mg/dl.
+[246] 1 = True (> 120 mg/dl)
+[247] 0 = False (< 120 mg/dl
+[248] RestECG
+[249] Categorical
+[250] Resting electrocardiographic results.
+[251] 0 = Normal
+[252] 1=ST-T wave abnormality
+[253] 2=Left ventricular hypertrophy
+[254] Thalach
+[255] Continuous
+[256] Maximum heart rate achieved during stress test.
+[257] 71 to 202 bpm
+[258] Exang
+[259] Categorical
+[260] Exercise-induced angina.
+[261] 1 = Yes, 0 = No
+[262] Oldpeak
+[263] Continuous
+[264] ST depression induced by exercise relative to rest.
+[265] 0.0 to 6.2
+[266] Slope
+[267] Categorical
+[268] The slope of the peak exercise ST segment.
+[269] 0 = Upsloping
+[270] 1 = Flat
+[271] 2 = Downsloping
+[272] CA
+[273] Discrete
+[274] Number of major vessels colored by flourosopy.
+[275] 0 to 3 vessels
+[276] Thal
+[277] Categorical
+[278] Thalassemia blood disorder status.
+[279] 1 = Normal
+[280] 2 = Fixed Defect
+[281] 3 = Reversable Defect
+[282] Target
+[283] Label
+[284] Diagnosis of heart disease.
+[285] 0 = Healthy
+[286] 1 = Heart Disease Present
+[287] Note: The categorical values listed above are numerically encoded within the dataset (UCI.csv) to facilitate mathematical processing by the KNN algorithm.
+[288] 4.3 Data Preprocessing Pipeline
+[289] Before the data could be fed into the Machine Learning model, it underwent a series of transformation steps defined in the train() method of the HeartDiseasePredictor class.
+[290] Step 1: Data Ingestion
+[291] The system loads the raw Comma-Separated Values (CSV) file using the Pandas library:
+[292] Python
+[293] data = pd.read_csv('UCI.csv')
+[294] This creates a DataFrame structure that allows for easy manipulation and inspection of the 303 rows of patient data.
+[295] Step 2: Feature-Target Separation
+[296] The dataset is split into two distinct components:
+[297] Matrix X: Contains the 13 independent features (age through thal).
+[298] Vector y: Contains the dependent target variable (target).
+[299] Step 3: Stratified Sampling
+[300] To ensure the model is trained on a representative sample of the population, we utilized Stratified Random Sampling. In simple random sampling, there is a risk that the training set might end up with mostly "Healthy" patients, leaving the "Disease" cases for the test set (or vice versa). Stratification ensures that the proportion of Healthy vs. Disease cases remains consistent across both training and testing sets.
+[301] In test.py, this is implemented as:
+[302] Python
+[303] X_train, X_test, y_train, y_test = train_test_split(
+[304]     X, y, 
+[305]     test_size=0.2, 
+[306]     random_state=42, 
+[307]     stratify=y
+[308] )
+[309] This results in an 80/20 split, where 80% of data (approx. 242 records) is used for training, and 20% (approx. 61 records) is reserved for unbiased validation.
+[310] Step 4: Z-Score Standardization
+[311] As discussed in Chapter 1, features like Cholesterol (magnitude ~250) and Old peak (magnitude ~1.5) cannot be compared directly. We applied the StandardScaler to normalize all features to a mean of 0 and a standard deviation of 1.
+[312] 5: THE "SMART BMI" WORKING
+[313] 5.1 Limitations of Quetelet's Index (Standard BMI)
+[314] Body Mass Index (BMI), also known as Quetelet's Index, is a widely used heuristic for categorizing individuals into groups such as Underweight, Normal Weight, Overweight, and Obese. The standard formula used globally is:
+[315] BMI = Weight (kg)\Height (cm)2
+[316] While this formula provides a quick estimation of body fat for average adults, it suffers from significant limitations when applied to a broader demographic:
+[317] Pediatric Inaccuracy: Children and teenagers are in a constant state of growth. A BMI that is considered "Underweight" for an adult might be perfectly healthy for a 6-year-old child. Standard BMI charts do not account for these developmental stages.
+[318] Geriatric Considerations: For elderly patients (age 65+), carrying slightly more weight can actually be protective against mortality ("the obesity paradox"). Conversely, muscle mass loss (sarcopenia) in the elderly can result in a "Normal" BMI that hides nutritional deficiencies.
+[319] One-Size-Fits-All Failure: Applying the standard threshold of 25.0 for "Overweight" to every user regardless of age leads to misdiagnosis and unnecessary alarm.
+[320] To address these shortcomings, Heart Guard AI does not rely on a static lookup table. Instead, it implements a "Smart BMI" algorithm encapsulated within the Patient Profile class, which dynamically adjusts health thresholds based on the user's age.
+[321] 5.2 Developing the Age-Aware Logic
+[322] The calculate_bmi method in test.py is designed to handle five distinct demographic groups. This logic ensures that the "Risk Assessment" presented to the user is medically relevant to their life stage.
+[323] 5.2.1 Group 1: Toddlers & Young Children (< 5 Years)
+[324] Logic: At this age, children are naturally leaner. The threshold for "Underweight" is significantly lower.
+[325] Code Implementation:
+[326] Python
+[327] if self.age < 5:
+[328]     if bmi < 14: category = "Underweight"
+[329]     elif bmi < 18: category = "Healthy Weight (Child)"
+[330]     elif bmi < 19: category = "Overweight (Child)"
+[331]     else: category = "Obese (Child)"
+[332] Observation: A BMI of 17.5 is "Healthy" here, whereas for an adult, it would be "Underweight."
+[333] 5.2.2 Group 2: School-Age Children (5 - 9 Years)
+[334] Logic: As children grow, their body mass increases relative to their height. The thresholds shift slightly upwards.
+[335] Code Implementation:
+[336] Python
+[337] elif self.age < 10:
+[338]     if bmi < 14.5: category = "Underweight"
+[339]     # The 'Healthy' upper limit moves from 18 to 20
+[340]     elif bmi < 20: category = "Healthy Weight (Child)"
+[341] 5.2.3 Group 3: Teenagers (10 - 18 Years)
+[342] Logic: Adolescence brings rapid growth spurts and muscle development. The "Healthy" range expands significantly to accommodate this variability (up to BMI 24).
+[343] Code Implementation:
+[344] Python
+[345] else: # 10-18
+[346]     if bmi < 16: category = "Underweight"
+[347]     elif bmi < 24: category = "Healthy Weight (Teen)"
+[348]     # Overweight threshold begins at 24, approaching the adult standard of 25
+[349]     elif bmi < 28: category = "Overweight (Teen)"
+[350] 5.2.4 Group 4: The Elderly (≥ 65 Years)
+[351] Logic: Medical literature suggests that for older adults, a slightly higher BMI is associated with better health outcomes. Being too thin (BMI < 23) is often a greater risk factor for frailty than being slightly overweight.
+[352] Code Implementation:
+[353] Python
+[354] elif self.age >= 65:
+[355]     if bmi < 23: category = "Underweight (Elderly)" # Higher threshold than adults
+[356]     elif bmi < 29: category = "Normal (Elderly)"      # Range extends to 29
+[357]     elif bmi < 32: category = "Overweight (Elderly)"
+[358] Observation: An adult with a BMI of 28 is "Overweight," but an elderly patient with the same BMI is classified as "Normal." This prevents false alarms for senior citizens.
+[359] 5.2.5 Group 5: Standard Adults (19 - 64 Years)
+[360] Logic: For the general adult population, the standard WHO guidelines are applied.
+[361] Code Implementation:
+[362] Python
+[363] else:
+[364]     if bmi < 18.5: category = "Underweight"
+[365]     elif bmi < 25: category = "Normal"
+[366]     elif bmi < 30: category = "Overweight"
+[367]     else: category = "Obese"
+[368] 5.3 Implementation Details
+[369] The algorithm is implemented as an instance method within the PatientProfile class. This design ensures that every patient object "knows" how to evaluate its own health status based on its internal state (self.age, self.weight_kg, self.height_cm).
+[370] Code Walkthrough (test.py):
+[371] Python
+[372] def calculate_bmi(self):
+[373]     """Calculate BMI and return value and category based on age."""
+[374]     # Safety Check: Prevent Division by Zero
+[375]     if self.height_cm <= 0:
+[376]         return 0, "Invalid"
+[377]     # 1. Unit Conversion
+[378]     height_m = self.height_cm / 100  # Convert cm to meters
+[379]     # 2. Formula Application
+[380]     bmi = self.weight_kg / (height_m ** 2)
+[381]     # 3. Categorization Logic (Nested If-Else)
+[382]     category = "Normal"
+[383]     if self.age < 19:
+[384]         # ... Child logic ...
+[385]     elif self.age >= 65:
+[386]         # ... Elderly logic ...
+[387]     else:
+[388]         # ... Adult logic ...
+[389]     return bmi, category
+[390] Integration with User Interface:
+[391] This logic directly drives the UI feedback. In the _display_bmi_widget method of HeartGuardApp, the system checks the age again to format the display card. If the patient is a child (age < 19), the UI renders a special "Child Growth Status" card with distinct styling (e.g., #ffeaa7 text color), reinforcing the personalized nature of the analysis.
+[392] Note on Machine Learning Context:
+[393] It is important to note that while "Smart BMI" is critical for the User Report and Recommendations, the calculated BMI value itself is not fed into the KNN Machine Learning model. The model (HeartDiseasePredictor) uses the raw physiological features (Chest Pain, Cholesterol, etc.) as defined in the UCI dataset. The Smart BMI serves as an auxiliary health metric to give the user immediate, understandable feedback on their general physical state alongside the cardiac risk prediction.
+[394] 6: RESULT ANALYSIS
+[395] 6.1 Hyperparameter Tuning (Optimizing 'K')
+[396] The performance of the K-Nearest Neighbors (KNN) algorithm is highly sensitive to the choice of K (the number of neighbors). If K is too small (e.g., K=1), the model becomes sensitive to noise (overfitting). If K is too large, the model becomes overly smoothed and fails to capture local patterns (underfitting).
+[397] To determine the optimal configuration for Heart Guard AI, we conducted an exhaustive grid search, testing K values from 1 to 20. The experiment measured the testing accuracy at each interval.
+[398] Table 6.1: Accuracy vs. K-Value Experiment
+[399] K-Value (Neighbors)
+[400] Testing Accuracy
+[401] Performance Status
+[402] 1
+[403] 81.97%
+[404] Underperforming (High Variance)
+[405] 3
+[406] 85.25%
+[407] Moderate
+[408] 5
+[409] 90.16%
+[410] Optimal (Selected Model)
+[411] 7
+[412] 83.61%
+[413] Performance Drop
+[414] 10
+[415] 86.89%
+[416] Stable but lower than K=5
+[417] 15
+[418] 85.25%
+[419] Oversmoothed
+[420] 20
+[421] 83.61%
+[422] Underfitting
+[423] Analysis:
+[424] The experimental data reveals a peak accuracy of 90.16% at K=5 and K=11. We selected K=5 as the production parameter because smaller odd numbers are computationally more efficient for real-time applications and reduce the likelihood of tie-breaking situations during the voting process.
+[425] 6.2 Confusion Matrix Analysis
+[426] To understand where the model makes errors, we analyzed the Confusion Matrix. Accuracy alone can be misleading; in medical diagnostics, False Negatives (failing to detect a sick patient) are critical errors.
+[427] Table 6.2: Confusion Matrix (K=5)
+[428] Predicted: Healthy (0)
+[429] Predicted: Disease (1)
+[430] Actual: Healthy (0)
+[431] 27 (True Negative)
+[432] 6 (False Positive)
+[433] Actual: Disease (1)
+[434] 0 (False Negative)
+[435] 28 (True Positive)
+[436] Interpretation:
+[437] True Negatives (27): The model correctly identified 27 healthy patients.
+[438] True Positives (28): The model correctly identified 28 patients with heart disease.
+[439] False Negatives (0): This is the most significant achievement. The model did not miss a single positive case in the test set. In a medical screening tool, minimizing False Negatives is the highest priority to ensure no at-risk patient is sent home without care.
+[440] False Positives (6): The model incorrectly flagged 6 healthy people as "At Risk." While not ideal, this is acceptable for a preliminary screening tool, as it simply prompts further medical investigation rather than missing a life-threatening condition.
+[441] 6.3 Classification Metrics
+[442] Beyond simple accuracy, we evaluated the model using Precision, Recall, and F1-Score to ensure a balanced performance across both classes.
+[443] Table 6.3: Detailed Classification Report
+[444] Class
+[445] Precision
+[446] Recall (Sensitivity)
+[447] F1-Score
+[448] Support (Count)
+[449] 0 (Healthy)
+[450] 1.00 (100%)
+[451] 0.82 (82%)
+[452] 0.90
+[453] 33
+[454] 1 (Disease)
+[455] 0.82 (82%)
+[456] 1.00 (100%)
+[457] 0.90
+[458] 28
+[459] Weighted Avg
+[460] 0.92
+[461] 0.90
+[462] 0.90
+[463] 61
+[464] Key Finding:
+[465] The Recall for Class 1 (Disease) is 100%. This confirms mathematically that the system is highly sensitive to the presence of heart disease, validating its utility as a reliable "Heart Guard."
+[466] Rank
+[467] Feature Name
+[468] Importance Score
+[469] Medical Relevance
+[470] 1
+[471] Thalach (Max Heart Rate)
+[472] 0.1818
+[473] High heart rate under stress is a primary indicator.
+[474] 2
+[475] Chol (Cholesterol)
+[476] 0.0959
+[477] High serum cholesterol blocks arteries.
+[478] 3
+[479] Trestbps (Resting BP)
+[480] 0.0636
+[481] Hypertension puts strain on the heart.
+[482] 4
+[483] Age
+[484] 0.0380
+[485] Risk naturally increases with age.
+[486] 5
+[487] Thal (Thalassemia)
+[488] 0.0107
+[489] Genetic blood disorders affect oxygen supply.
+[490] 6.4 Feature Importance Analysis
+[491] Using Permutation Importance, we analyzed which clinical features contributed most to the model's decision-making process. Understanding these factors provides medical interpretability to the "Black Box" AI model.
+[492] Table 6.4: Top 5 Predictive Features
+[493] Visualization:
+[494] The high importance of Thalach (Max Heart Rate) and Cholesterol aligns with established cardiological literature. Interestingly, purely demographic features like Sex had zero permutation importance (0.0) in this specific model iteration, suggesting the model prioritizes physiological biomarkers over gender for this dataset.
+[495] 6.4.1 Ablation Studies (Split Ratio & Distance Metric)
+[496] To validate our architectural decisions, we ran experiments varying the Training/Testing split ratio and the mathematical distance metric used by KNN.
+[497] Experiment A: Training Split Ratio Impact
+[498] Experiment B: Distance Metric Efficiency
+[499] We compared different geometric definitions of "closeness."
+[500] Conclusion:
+[501] The experimental results conclusively demonstrate that a K-Nearest Neighbors model with K=5, using Euclidean distance, trained on an 80/20 stratified split of the UCI dataset, yields the most robust and medically safe predictions (100% Recall) for the Heart Guard AI system.
+[502] 7: USER MANUAL & DEPLOYMENT
+[503] 7.1 Installation Guide
+[504] Heart Guard AI is a web-based application built on a Python technology stack. It requires a specific environment to run the machine learning models and render the interactive visualizations.
+[505] System Requirements:
+[506] Operating System: Windows 10/11, macOS, or Linux (Ubuntu 20.04+).
+[507] Python Version: Python 3.8 or higher.
+[508] Memory: Minimum 4GB RAM (8GB recommended for smoother rendering).
+[509] Browser: Google Chrome, Firefox, or Microsoft Edge.
+[510] Step-by-Step Installation:
+[511] Clone the Repository: Open a terminal or command prompt and navigate to the desired project folder.
+[512] Bash
+[513] git clone https://github.com/KashyapHi/HeartGuard-AI.git
+[514] cd Heart Guard-AI
+[515] Install Dependencies: project relies on several external Python libraries. Install them using pip:
+[516] Bash
+[517] pip install stream lit pandas numpy scikit-learn plotly joblib
+[518] Data Verification: Ensure the UCI.csv file is located in the root directory. This dataset is required for the initial training of the KNN model.
+[519] Launch the Application: Start the local web server by executing the following command:
+[520] stream lit run test.py
+[521] Access the Interface: The application will launch automatically in your default web browser at the address: http://localhost:8501.
+[522] 7.2 Configuration & Setup
+[523] The application is built using Streamlit, a Python framework that turns data scripts into shareable web apps. The entry point of the application is the HeartGuardApp class in test.py.
+[524] 7.2.1 Page Configuration The first step in the execution lifecycle is setting up the browser environment. This is handled by the AppConfig class.
+[525] Python
+[526] class AppConfig:
+[527]     @staticmethod
+[528]     def set_page_config():
+[529]         st.set_page_config(
+[530]             page_title="HeartGuard AI - Cardiac Health Analyzer",
+[531]             page_icon="❤️",
+[532]             layout="wide",
+[533]             initial_sidebar_state="expanded"
+[534]         )
+[535] page_title: Sets the browser tab title.
+[536] layout="wide": Critical for our dashboard design, allowing the charts and forms to use the full  width of the screen rather than a narrow central column.
+[537] initial_sidebar_state: Ensures the settings menu is visible immediately upon load.
+[538] 7.2.2 Custom CSS Styling To achieve a modern, "Glassmorphism" UI (translucent cards with blur effects), we inject raw CSS into the Streamlit app.
+[539] CSS
+[540] .prediction-card {
+[541]     background: linear-gradient(135deg, rgba(231, 76, 60, 0.95), rgba(192, 57, 43, 0.95));
+[542]     animation: pulse 2s infinite;
+[543]     backdrop-filter: blur(15px);
+[544] }
+[545] This CSS code creates the pulsing Red card seen when a "High Risk" prediction occurs. The backdrop-filter: blur(15px) creates the frosted glass effect, distinguishing Heart Guard AI from standard, flat data apps.
+[546] 7.3 Operational Workflow
+[547] The Heart Guard AI interface is designed for simplicity, following a "Input → Process → Output" workflow.
+[548] Step 1: Patient Profile Entry Use the sidebar or main form to input the patient's demographics and vitals:
+[549] Demographics: Adjust sliders for Age, Weight, and Height. Select Sex.
+[550] Clinical Vitals:
+[551] Chest Pain Type (CP): Select from 0 (Typical Angina) to 3 (Asymptomatic).
+[552] Resting BP: Enter systolic blood pressure (90-200 mmHg).
+[553] Cholesterol: Enter serum cholesterol (100-600 mg/dl).
+[554] Fasting Blood Sugar: Toggle "Yes" if > 120 mg/dl.
+[555] Step 2: Real-Time Feedback (Smart BMI) As you adjust the Age, Weight, and Height sliders, the application dynamically calculates the Smart BMI.
+[556] Children (<19 years): The widget displays "Child Growth Status" with age-adjusted     categories (e.g., "Healthy Weight (Teen)").
+[557] Adults/Elderly: The widget displays standard or elderly-specific BMI categories.
+[558] Step 3: Risk Analysis Click the "🔍 Analyze Risk" button to trigger the machine learning engine. The system will standardize the inputs and query the KNN model.
+[559] 7.4 Interpreting Medical Reports
+[560] Upon analysis, the dashboard presents results in four tabbed sections:
+[561] Tab 1: 🎯 Risk Assessment
+[562] Risk Gauge: A speedometer-style chart showing the probability of heart disease (0-100%).
+[563] Green (0-30%): Low Risk.
+[564] Yellow (30-70%): Moderate Risk.
+[565] Red (70-100%): High Risk.
+[566] Status Card: A distinct card displays the final verdict, e.g., "🚨 HIGH RISK (91.2%)" or "✅ LOW RISK", pulsing or floating based on the severity.
+[567] Tab 2: 📊 Feature Insights
+[568] Feature Importance Plot: A horizontal bar chart identifying which specific health factors contributed most to this prediction (e.g., if "Max HR" is the top bar, it was the primary risk driver).
+[569] Tab 3: ⚖️ BMI Analysis
+[570] A visual scale placing the patient's BMI against their age-group norms. A red star marker indicates their position relative to "Underweight," "Normal," "Overweight," and "Obese" zones.
+[571] Tab 4: 👥 Comparative Analysis
+[572] Box Plots: These graphs compare the current patient's Age and Cholesterol against the historical averages in the UCI dataset, helping to identify if the patient is a statistical outlier.
+[573] Exporting Results:
+[574] JSON Report: Downloads a structured data file for integration with medical software.
+[575] Text Report: Downloads a formatted, readable summary of the patient's vitals, risk level, and automated recommendations (e.g., "Consult cardiologist", "Monitor BP").
+[576] 8.Appendix:
+[577] Outputs
+[578] :
+[579] JSON Report File
+[580] 8.2 Sample Code:
+[581] import streamlit as st
+[582] import pandas as pd
+[583] import numpy as np
+[584] import json
+[585] import plotly.graph_objects as go
+[586] import plotly.express as px
+[587] from sklearn.neighbors import KNeighborsClassifier
+[588] from sklearn.preprocessing import StandardScaler
+[589] from sklearn.model_selection import train_test_split
+[590] from sklearn.metrics import accuracy_score
+[591] from datetime import datetime
+[592] import joblib
+[593] import os
+[594] import warnings
+[595] def calculate_bmi(self):
+[596]         """Calculate BMI and return value and category based on age."""
+[597]         if self.height_cm <= 0:
+[598]             return 0, "Invalid"
+[599]         height_m = self.height_cm / 100
+[600]         bmi = self.weight_kg / (height_m ** 2)
+[601]         category = "Normal"
+[602]         if self.age < 19:
+[603]             # Child/Teen Logic
+[604]             if self.age < 5:
+[605]                 if bmi < 14: category = "Underweight"
+[606]                 elif bmi < 18: category = "Healthy Weight (Child)"
+[607]                 elif bmi < 19: category = "Overweight (Child)"
+[608]                 else: category = "Obese (Child)"
+[609]             elif self.age < 10:
+[610]                 if bmi < 14.5: category = "Underweight"
+[611]                 elif bmi < 20: category = "Healthy Weight (Child)"
+[612]                 elif bmi < 23: category = "Overweight (Child)"
+[613]                 else: category = "Obese (Child)"
+[614]             else: # 10-18
+[615]                 if bmi < 16: category = "Underweight"
+[616]                 elif bmi < 24: category = "Healthy Weight (Teen)"
+[617]                 elif bmi < 28: category = "Overweight (Teen)"
+[618]                 else: category = "Obese (Teen)"
+[619]         elif self.age >= 65:
+[620]             # Elderly Logic
+[621]             if bmi < 23: category = "Underweight (Elderly)"
+[622]             elif bmi < 29: category = "Normal (Elderly)"
+[623]             elif bmi < 32: category = "Overweight (Elderly)"
+[624]             else: category = "Obese (Elderly)"
+[625]         else:
+[626]             # Standard Adult
+[627]             if bmi < 18.5: category = "Underweight"
+[628]             elif bmi < 25: category = "Normal"
+[629]             elif bmi < 30: category = "Overweight"
+[630]             else: category = "Obese"
+[631]         return bmi, category
+[632] class PatientProfile:
+[633]     def __init__(self, age, sex, weight_kg, height_cm, medical_data):
+[634]         self.age = age
+[635]         self.sex = sex  # "Male" or "Female"
+[636]         self.weight_kg = weight_kg
+[637]         self.height_cm = height_cm
+[638]         self.medical_data = medical_data # Dict containing cp, chol, etc.
+[639]     @property
+[640]     def sex_numeric(self):
+[641]         """Converts categorical sex to numerical format for ML model."""
+[642]         return 1 if self.sex == "Male" else 0
+[643]     def to_feature_list(self):
+[644]         """Convert patient data object to a standard feature list expected by the model."""
+[645]         # Strict order: age, sex, cp, trestbps, chol, fbs, restecg, thalach, ...
+[646]         return [
+[647]             self.age,
+[648]             self.sex_numeric,
+[649]             self.medical_data['cp'],
+[650]             self.medical_data['trestbps'],
+[651]             self.medical_data['chol'],
+[652]             self.medical_data['fbs'],
+[653]             self.medical_data['restecg'],
+[654]             self.medical_data['thalach'],
+[655]             self.medical_data['exang'],
+[656]             self.medical_data['oldpeak'],
+[657]             self.medical_data['slope'],
+[658]             self.medical_data['ca'],
+[659]             self.medical_data['thal']
+[660]         ]
+[661] def train(self, data, n_neighbors=5):
+[662]         X = data[self.feature_names]
+[663]         y = data['target'] 
+[664]         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+[665]         X_train_scaled = self.scaler.fit_transform(X_train)
+[666]         X_test_scaled = self.scaler.transform(X_test)
+[667]         self.model = KNeighborsClassifier(n_neighbors=n_neighbors, metric='euclidean', weights='distance')
+[668]         self.model.fit(X_train_scaled, y_train)
+[669]         y_pred = self.model.predict(X_test_scaled)
+[670]         accuracy = accuracy_score(y_test, y_pred)
+[671]         joblib.dump(self.model, self.model_path)
+[672]         joblib.dump(self.scaler, self.scaler_path)
+[673]         feature_importance = self._calculate_feature_importance(X_train, y_train)
+[674]         return {
+[675]             'accuracy': accuracy,
+[676]             'feature_importance': feature_importance,
+[677]             'status': 'Trained'
+[678]         }
+[679]     def predict(self, patient_profile: PatientProfile):
+[680]         if self.model is None:
+[681]             raise ValueError("Model not trained or loaded.")
+[682]         features = patient_profile.to_feature_list()
+[683]         features_scaled = self.scaler.transform([features])
+[684]         prediction = self.model.predict(features_scaled)[0]
+[685]         probs = self.model.predict_proba(features_scaled)[0]
+[686]         return {
+[687]             'prediction': int(prediction),
+[688]             'probability_1': float(probs[1]),
+[689]             'risk_level': 'High' if prediction == 1 else 'Low',
+[690]             'confidence': float(max(probs))
+[691]         }
+[692] def plot_risk_gauge(self, risk_probability):
+[693]         fig = go.Figure(go.Indicator(
+[694]             mode="gauge+number+delta",
+[695]             value=risk_probability * 100,
+[696]             domain={'x': [0, 1], 'y': [0, 1]},
+[697]             title={'text': "Heart Disease Risk Score", 'font': {'size': 24}},
+[698]             gauge={
+[699]                 'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+[700]                 'bar': {'color': "darkblue"},
+[701]                 'steps': [
+[702]                     {'range': [0, 30], 'color': '#00b894'},
+[703]                     {'range': [30, 70], 'color': '#fdcb6e'},
+[704]                     {'range': [70, 100], 'color': '#e17055'}
+[705]                 ],
+[706] 'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75,'value': 90}
+[707]             }  ))
+[708]         fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': self.colors['text']})
+[709]         return fig
+[710] def render_prediction_section(self, patient: PatientProfile, data, training_results):
+[711]         if st.button("🔍 Analyze Risk", use_container_width=True):
+[712]             try:
+[713]                 result = self.predictor.predict(patient)
+[714]                 bmi_info = patient.calculate_bmi()
+[715]                 # Display Card
+[716]                 if result['prediction'] == 1:
+[717]                      st.markdown(f"""<div class="prediction-card"><h2>🚨 HIGH RISK ({result['probability_1']:.1%})</h2></div>""", unsafe_allow_html=True)
+[718]                 else:
+[719]                      st.markdown(f"""<div class="safe-card"><h2>✅ LOW RISK ({result['probability_1']:.1%})</h2></div>""", unsafe_allow_html=True)
+[720]                 # Visualizations
+[721]                 viz = Visualizer(st.session_state.theme)
+[722]                 t1, t2, t3, t4 = st.tabs(["🎯 Risk", "📊 Features", "⚖️ BMI", "👥 Compare"])
+[723]                 with t1: st.plotly_chart(viz.plot_risk_gauge(result['probability_1']), use_container_width=True)
+[724]                 with t2: st.plotly_chart(viz.plot_feature_importance(training_results['feature_importance']), use_container_width=True)
+[725]                 with t3: st.plotly_chart(viz.plot_bmi_analysis(bmi_info[0], patient.age), use_container_width=True)
+[726]                 with t4: 
+[727]                     c1, c2 = st.columns(2)
+[728]                     with c1: st.plotly_chart(viz.plot_comparison(data, patient.age, 'age', '#4ecdc4'), use_container_width=True)
+[729]                     with c2: st.plotly_chart(viz.plot_comparison(data, patient.medical_data['chol'], 'chol', '#ff6b6b'), use_container_width=True)
+[730]                 # Report Download
+[731]                 json_rep = ReportGenerator.create_json(patient, result, bmi_info)
+[732]                 txt_rep = ReportGenerator.create_text(patient, result, bmi_info)
+[733]                 d1, d2 = st.columns(2)
+[734]                 d1.download_button("📥 JSON Report", json_rep, "report.json", "application/json")
+[735]  9: CONCLUSION & FUTURE SCOPE
+[736] 9.1 Conclusion
+[737] Heart Guard AI: A Machine Learning Approach to Cardiac Health Analysis represents a successful integration of medical science and advanced computing. This project was developed to address the critical need for accessible, non-invasive, and rapid cardiac screening tools. By leveraging the K-Nearest Neighbors (KNN) algorithm and the UCI Heart Disease dataset, we have created a system capable of predicting heart disease risk with a verified accuracy of 90.16%.
+[738] The project addresses several limitations of traditional heuristic methods:
+[739] Precision vs. Guesswork: Unlike static scoring sheets, our KNN model (K=5) dynamically compares a patient against 303 real-world clinical cases to find statistically significant patterns.
+[740] Age-Adaptive Analysis: The implementation of the "Smart BMI" algorithm in the Patient Profile class ensures that health assessments are biologically appropriate, distinguishing between the developmental needs of children, the stability of adults, and the specific requirements of the elderly.
+[741] Zero False Negatives: Empirically, the model achieved a Recall of 100% for the positive class (Disease), ensuring that no high-risk patient in our testing subset was incorrectly classified as healthy—a critical safety benchmark for medical software.
+[742] Technically, the modular Object-Oriented architecture allows for seamless scalability. The separation of concerns between the Prediction Engine (HeartDiseasePredictor), the Visualization logic (Visualizer), and the UI layer (HeartGuardApp) ensures that future updates can be deployed with minimal regression risks.
+[743] In conclusion, Heart Guard AI serves as a powerful "Second Opinion" system. While it does not replace a cardiologist, it empowers users with data-driven insights, encouraging proactive health management and potentially saving lives through early detection.
+[744] 9.2 Future Scope
+[745] While the current version of Heart Guard AI is a robust diagnostic tool, the domain of HealthTech offers vast opportunities for expansion. The following enhancements are proposed for future development cycles:
+[746] 1. Integration with Wearable IoT Devices
+[747] Currently, users must manually input vitals like "Resting Heart Rate" and "Exercise Induced Angina." Future iterations could integrate with Apple Watch or Fitbit APIs. This would allow the application to fetch real-time pulse data (Thalach) and activity metrics directly, eliminating manual entry errors and enabling continuous monitoring.
+[748] 2. Deep Learning Implementation
+[749] While KNN is effective for smaller, structured datasets, scaling to millions of patient records would require more complex architectures. We propose experimenting with Artificial Neural Networks (ANN) or Long Short-Term Memory (LSTM) networks to analyze sequential ECG data (RestECG) directly, rather than relying on categorical summaries.
+[750] 3. Multi-Language Support
+[751] Heart disease is a global issue. To make this tool accessible to rural populations in India and abroad, the interface (currently in English) should be localized. Using libraries like gettext, we can offer the UI and generated PDF reports in Hindi, Bengali, Spanish, and other regional languages.
+[752] 4. Telemedicine Connectivity
+[753] The "Recommendations" section of the report currently offers generic advice. A future module could connect the application to a doctor's scheduling system (e.g., Practo or Zocdoc API). If a user is flagged as "High Risk," the app could immediately suggest nearby cardiologists or facilitate a video consultation.
+[754] 5. Explainable AI (XAI)
+[755] While we currently use Permutation Importance to show global feature importance, implementing SHAP (Shapley Additive explanations) values would allow us to explain individual predictions. For example, telling a specific user: "Your risk is high specifically because your Cholesterol is 260, not because of your Age."
+[756] 10: BIBLOGRAPHY & REFERENCES
+[757] The completion of this project, "Heart Guard AI: A Machine Learning Approach to Cardiac Health Analysis," was made possible through the theoretical knowledge and practical foundations provided by the esteemed faculty of the Department of Computer Applications at Dr. B.C. Roy Engineering College.
+[758] I. Academic Guidance & Coursework (Dr. B.C. Roy Engineering College):
+[759] 1. Subhrangsu Chandra, (Assistant Professor): Lecture Notes on Machine Learning and Data Science. (Crucial theoretical foundation for the K-Nearest Neighbors algorithm, model training pipelines, and data preprocessing techniques utilized in this project).
+[760] 2. Debasis Guha, (Assistant Professor): Course Materials: Probability & Statistics, and Software Engineering. (Provided the mathematical basis for Euclidean distance calculations and statistical evaluation metrics, along with the methodologies for system analysis and design).
+[761] 3. Dr. Pabitra Kumar Day, (Professor & HOD): Fundamentals of Discrete Mathematics and DBMS. (Essential for understanding mathematical logic and structured data handling concepts applied to the UCI dataset).
+[762] 4. Ansuman Mahanty, (Assistant Professor): Design & Analysis of Algorithms and Operating Systems. (Foundational knowledge for efficient algorithmic thinking and system resource management).
+[763] 5. Uday Kumar Banerjee, (Assistant Professor): Web Technologies and Cyber Security Principles. (Provided the background knowledge on web architecture necessary for deploying the model via a web interface).
+[764] 6. UCI Machine Learning Repository: Heart Disease Data Set (Cleveland).
+[765] https://archive.ics.uci.edu/ml/datasets/heart disease. (The primary source of clinical data used for training and testing the predictive model).
+[766] 7. Scikit-learn Developers. Scikit-learn: Machine Learning in Python.
+[767] https://scikit-learn.org .Documentation for the KNeighborsClassifier, StandardScaler, and model evaluation tools).
+[768] ***********************

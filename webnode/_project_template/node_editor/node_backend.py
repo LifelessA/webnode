@@ -1,9 +1,7 @@
 import http.server
-import socketserver
 import json
 import os
 import subprocess
-import signal
 import sys
 import socket
 import webbrowser
@@ -13,6 +11,24 @@ sys.path.insert(
     0, 
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
+
+def _disable_quick_edit():
+    """Disables Windows Console/Terminal QuickEdit mode on startup to prevent clicked window freezing."""
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            # Get handle to stdin
+            h = ctypes.windll.kernel32.GetStdHandle(-10) # STD_INPUT_HANDLE = -10
+            if h and h != -1:
+                mode = ctypes.c_uint()
+                if ctypes.windll.kernel32.GetConsoleMode(h, ctypes.byref(mode)):
+                    # Disable ENABLE_QUICK_EDIT_MODE (0x0040) and enable ENABLE_EXTENDED_FLAGS (0x0080)
+                    ctypes.windll.kernel32.SetConsoleMode(h, (mode.value & ~0x0040) | 0x0080)
+                    print("⚡ QuickEdit mode disabled to prevent Windows Terminal click freezes.")
+        except Exception:
+            pass
+
+_disable_quick_edit()
 
 def _check_production_lock():
     try:
@@ -95,25 +111,14 @@ def wait_for_server(port, timeout=10, host='127.0.0.1'):
     return False
 
 import urllib.request
-import traceback
 
 FRAMEWORK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def load_rag_content(node_type=None):
-    rag_path = os.path.join(FRAMEWORK_DIR, 'core', 'ai', 'FRAMEWORK_RAG.md')
+def load_rag_content(node_type):
     ui_rag_path = os.path.join(FRAMEWORK_DIR, 'core', 'ai', 'UI_SKILL_RAG.md')
     content = ""
-    # FRAMEWORK_RAG only for the architect endpoint (graph building)
-    # Individual nodes should NOT see graph-building examples
-    if node_type is None:
-        if os.path.exists(rag_path):
-            try:
-                with open(rag_path, 'r', encoding='utf-8') as f:
-                    content += f.read() + "\n\n"
-            except Exception:
-                pass
-    # UI_SKILL_RAG for visual nodes (RenderNode, CSSNode, ClientJSNode) and architect
-    if node_type in (None, 'RenderNode', 'TemplateNode', 'CSSNode', 'ClientJSNode'):
+    # UI_SKILL_RAG only for visual nodes (RenderNode, CSSNode, ClientJSNode)
+    if node_type in ('RenderNode', 'TemplateNode', 'CSSNode', 'ClientJSNode'):
         if os.path.exists(ui_rag_path):
             try:
                 with open(ui_rag_path, 'r', encoding='utf-8') as f:
@@ -155,8 +160,6 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_settings_save()
         elif self.path == '/api/ai/generate':
             self.handle_ai_generate()
-        elif self.path == '/api/ai/architect':
-            self.handle_ai_architect()
         elif self.path == '/api/node_file_save':
             self.handle_node_file_save()
         elif self.path == '/api/db/reset':
@@ -262,6 +265,14 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         global active_process
         if active_process:
             active_process.terminate()
+            try:
+                active_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                active_process.kill()
+                try:
+                    active_process.wait(timeout=3)
+                except Exception:
+                    pass
             active_process = None
         
         self.send_response(200)
@@ -359,171 +370,6 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
 
-    def handle_ai_architect(self):
-        try:
-            if self.path == '/api/master_architect':
-                content_length = int(self.headers['Content-Length'])
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                prompt = data.get('prompt', '')
-                provider = data.get('provider', 'ollama')
-                api_key = data.get('api_key', '')
-
-                # Parse AI config
-                ai_config = {}
-                with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ai_editor', 'ai_backend.py'), 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if line.startswith('AI_CONFIG'):
-                            ai_config = eval(line.split('=', 1)[1].strip())
-                            break
-
-                if provider != 'ollama' and provider != 'local' and not api_key:
-                    self.send_response(400)
-                    self.end_headers()
-                    self.wfile.write(f"API Key for '{provider}' is missing.".encode('utf-8'))
-                    return
-
-                rag_content = load_rag_content()
-                system_prompt = f'''You are a Master Software Architect for a Node-Based Web Framework.
-    The user will describe a website or application. You must output ONLY a valid JSON object representing the graph architecture.
-    DO NOT wrap the JSON in backticks.
-    The JSON MUST have two keys: "graph" and "instructions".
-    1. "graph": an object with "nodes" (array) and "connections" (array).
-       - Nodes must have: id (unique string), type (ServerNode, HTTPRequestsNode, URLNode, RenderNode, CSSNode, LogicNode, JSNode, ClientJSNode), x (number), y (number).
-       - ServerNode MUST be present, usually followed by HTTPRequestsNode -> URLNode -> RenderNode (Template) -> CSSNode/ClientJSNode.
-       - You can place nodes roughly 250px apart horizontally.
-    2. "instructions": an object mapping node IDs to specific AI prompts.
-       - For RenderNode, provide a prompt to generate the HTML. Instruct the AI to use the UI_SKILL_RAG methods.
-       - For CSSNode, provide a prompt to generate the CSS. Instruct the AI to use the UI_SKILL_RAG methods.
-       - For ClientJSNode, provide a prompt to generate the frontend JS.
-       - For LogicNode, provide a prompt to generate the Python backend logic.
-
-    Here is the RAG context about the framework and UI skills:
-    {rag_content}
-
-    Example output:
-    {{
-      "graph": {{
-        "nodes": [
-          {{"id": "node-server", "type": "ServerNode", "x": 100, "y": 100}},
-          {{"id": "node-render", "type": "RenderNode", "x": 400, "y": 100}},
-          {{"id": "node-css", "type": "CSSNode", "x": 700, "y": 100}}
-        ],
-        "connections": [
-          {{"source": "node-server", "target": "node-render"}},
-          {{"source": "node-render", "target": "node-css"}}
-        ]
-      }},
-      "instructions": {{
-        "node-render": "Generate HTML for a landing page following the UI_SKILL_RAG rules (Unsplash images, semantic tags).",
-        "node-css": "Generate CSS using modern flex/grid, UI_SKILL_RAG animations, and glassmorphism."
-      }}
-    }}
-    '''
-            else:
-                content_length = int(self.headers['Content-Length'])
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                prompt = data.get('prompt', '')
-
-                if not prompt:
-                    raise ValueError("Prompt is required")
-
-                from ai_editor.ai_backend import load_ai_settings, get_provider_request_details
-                ai_config = load_ai_settings()
-                provider = ai_config.get('SELECTED_AI_PROVIDER', 'ollama').lower()
-                
-                api_key = ""
-                if provider == "gemini": api_key = ai_config.get("GEMINI_API_KEY")
-                elif provider == "gpt": api_key = ai_config.get("OPENAI_API_KEY")
-                elif provider == "claude": api_key = ai_config.get("CLAUDE_API_KEY")
-                elif provider == "deepseek": api_key = ai_config.get("DEEPSEEK_API_KEY")
-                elif provider == "openrouter": api_key = ai_config.get("OPENROUTER_API_KEY")
-                elif provider == "nvidia": api_key = ai_config.get("NVIDIA_API_KEY")
-                elif provider == "glm": api_key = ai_config.get("GLM_API_KEY")
-                elif provider == "dough": api_key = ai_config.get("DOUGH_API_KEY")
-                elif provider == "custom": api_key = ai_config.get("CUSTOM_API_KEY")
-
-                if provider != "ollama" and not api_key:
-                    self.send_response(400)
-                    self.end_headers()
-                    self.wfile.write(f"API Key for '{provider}' is missing.".encode('utf-8'))
-                    return
-
-                system_prompt = '''You are a Master Software Architect for a Node-Based Web Framework.
-    The user will describe a website or application. You must output ONLY a valid JSON object representing the graph architecture.
-    DO NOT wrap the JSON in backticks.
-    The JSON MUST have two keys: "graph" and "instructions".
-    1. "graph": an object with "nodes" (array) and "connections" (array).
-       - Nodes must have: id (unique string), type (ServerNode, HTTPRequestsNode, URLNode, RenderNode, CSSNode, LogicNode, JSNode, ClientJSNode), x (number), y (number).
-       - ServerNode MUST be present, usually followed by HTTPRequestsNode -> URLNode -> RenderNode (Template) -> CSSNode/ClientJSNode.
-       - You can place nodes roughly 250px apart horizontally.
-    2. "instructions": an object mapping node IDs to specific AI prompts.
-       - For RenderNode, provide a prompt to generate the HTML.
-       - For CSSNode, provide a prompt to generate the CSS.
-       - For ClientJSNode, provide a prompt to generate the frontend JS.
-       - For LogicNode, provide a prompt to generate the Python backend logic.
-
-    Example output:
-    {
-      "graph": {
-        "nodes": [
-          {"id": "node-server", "type": "ServerNode", "x": 100, "y": 100},
-          {"id": "node-render", "type": "RenderNode", "x": 400, "y": 100},
-          {"id": "node-css", "type": "CSSNode", "x": 700, "y": 100}
-        ],
-        "connections": [
-          {"source": "node-server", "target": "node-render"},
-          {"source": "node-render", "target": "node-css"}
-        ]
-      },
-      "instructions": {
-        "node-render": "Generate the HTML layout for a blog index",
-        "node-css": "Generate the CSS styles for the blog index, use a clean modern theme"
-      }
-    }
-    '''
-            url, headers, req_data = get_provider_request_details(
-                provider=provider,
-                ai_config=ai_config,
-                api_key=api_key,
-                system_prompt=system_prompt,
-                user_prompt=prompt,
-                stream=False
-            )
-
-            import urllib.request
-            req = urllib.request.Request(url, data=json.dumps(req_data).encode('utf-8'), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=120) as res:
-                response_data = res.read().decode('utf-8')
-                
-                # Parse response depending on provider
-                result_text = ""
-                if provider == 'ollama':
-                    result_text = json.loads(response_data).get('response', '')
-                else:
-                    choices = json.loads(response_data).get('choices', [])
-                    if choices:
-                        result_text = choices[0].get('message', {}).get('content', '')
-
-                # Clean markdown backticks if any
-                result_text = result_text.strip()
-                if result_text.startswith('```json'): result_text = result_text[7:]
-                elif result_text.startswith('```'): result_text = result_text[3:]
-                if result_text.endswith('```'): result_text = result_text[:-3]
-                
-                parsed_json = json.loads(result_text.strip())
-
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(parsed_json).encode())
-
-        except Exception as e:
-            self.send_response(400)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({'status': 'error', 'message': str(e)}).encode())
 
     def handle_ai_generate(self):
         try:
@@ -695,48 +541,80 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         # 3. Restart Server
         if active_process:
             active_process.terminate()
-            active_process.wait()
+            try:
+                active_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                active_process.kill()
+                active_process.wait(timeout=3)
+            active_process = None
             
-        # 3.5 Forcefully kill any stray background processes holding the port
-        try:
-            port = 8000
-            for n in graph_data.get('nodes', []):
-                if n['type'] == 'ServerNode':
-                    port = int(n.get('config', {}).get('port', 8000))
-                    break
-            kill_cmd = f"Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object {{ Stop-Process -Id $_ -Force }}"
-            subprocess.run(["powershell", "-Command", kill_cmd], capture_output=True)
-        except Exception:
-            pass
-            
-        # Check port is free before starting
-        port = 8000  # get from graph_data
+        # 3.5 Get configured port
+        port = 8000
         for n in graph_data.get('nodes', []):
             if n['type'] == 'ServerNode':
                 port = int(n.get('config', {}).get('port', 8000))
                 break
+
+        # 3.6 Forcefully kill any stray background processes holding the port
+        try:
+            kill_cmd = f"Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object {{ Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }}"
+            subprocess.run(["powershell", "-Command", kill_cmd], capture_output=True, timeout=10)
+        except Exception:
+            pass
         
-        # Wait for port to be free
-        # (old process may take time to die)
+        # 3.7 Wait for port to be free (up to 5 seconds)
         import time
-        for _ in range(20):  # max 2 seconds
+        port_free = False
+        for _ in range(50):  # max 5 seconds
             if is_port_free(port):
+                port_free = True
                 break
             time.sleep(0.1)
-
-        main_py_path = os.path.join(FRAMEWORK_DIR, 'main.py')
-        active_process = subprocess.Popen([sys.executable, main_py_path], cwd=FRAMEWORK_DIR)
         
-        # Verify server actually started
-        if not wait_for_server(port, timeout=8):
-            # Server failed to start
+        if not port_free:
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(
                 json.dumps({
                     'status': 'error',
-                    'message': f'Server failed to start on port {port}. Check main.py for errors.'
+                    'message': f'Port {port} is still in use. Please wait a moment and try deploying again.'
+                }).encode()
+            )
+            return
+
+        main_py_path = os.path.join(FRAMEWORK_DIR, 'main.py')
+        # Capture stderr so we can show actual errors on failure
+        active_process = subprocess.Popen(
+            [sys.executable, main_py_path],
+            cwd=FRAMEWORK_DIR,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE
+        )
+        
+        # Verify server actually started
+        if not wait_for_server(port, timeout=10):
+            # Server failed to start — try to get the error output
+            error_msg = ''
+            try:
+                # Give it a moment to flush stderr
+                active_process.wait(timeout=2)
+                stderr_out = active_process.stderr.read().decode('utf-8', errors='replace')
+                if stderr_out.strip():
+                    error_msg = stderr_out.strip()[-500:]  # last 500 chars
+            except Exception:
+                pass
+            
+            if not error_msg:
+                error_msg = f'Server failed to start on port {port}. Check main.py for errors.'
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(
+                json.dumps({
+                    'status': 'error',
+                    'message': error_msg
                 }).encode()
             )
             return
@@ -838,6 +716,19 @@ class EditorHandler(http.server.SimpleHTTPRequestHandler):
         code_lines = [
             "# AUTO-GENERATED BY NODE EDITOR COMPILER",
             "\n".join(imports),
+            "\n# Prevent click freezing in Windows terminals",
+            "def _disable_quick_edit():",
+            "    import sys",
+            "    if sys.platform == 'win32':",
+            "        try:",
+            "            import ctypes",
+            "            h = ctypes.windll.kernel32.GetStdHandle(-10)",
+            "            if h and h != -1:",
+            "                m = ctypes.c_uint()",
+            "                if ctypes.windll.kernel32.GetConsoleMode(h, ctypes.byref(m)):",
+            "                    ctypes.windll.kernel32.SetConsoleMode(h, (m.value & ~0x0040) | 0x0080)",
+            "        except Exception: pass",
+            "_disable_quick_edit()",
             "\n# Initialize Database if needed"
         ]
         
@@ -1064,7 +955,8 @@ try {{
         code_lines.append(f"FrameworkHandler._middleware_chain = None  # Reset cache on redeploy")
         code_lines.append(f"from http.server import HTTPServer")
         code_lines.append(f"from socketserver import ThreadingMixIn")
-        code_lines.append(f"class ThreadedHTTPServer(ThreadingMixIn, HTTPServer): pass")
+        code_lines.append(f"class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):")
+        code_lines.append(f"    allow_reuse_address = True")
         code_lines.append(f"with ThreadedHTTPServer(({server_var}.host, {server_var}.port), FrameworkHandler) as httpd:")
         code_lines.append(f"    try:")
         code_lines.append(f"        httpd.serve_forever()")
@@ -1075,55 +967,96 @@ try {{
         with open(os.path.join(FRAMEWORK_DIR, 'main.py'), 'w') as f:
             f.write("\n".join(code_lines))
 
-def _auto_fix_graph_json():
-    import json
-    import os
-    
-    print("🔧 [Auto-Fix] Running graph.json validation and recovery...")
-    log_path = r"C:\Users\lifel\.gemini\antigravity-ide\brain\da74de2c-266c-47ad-af2e-5f65d2035794\.system_generated\logs\transcript.jsonl"
-    
-    if not os.path.exists(log_path):
-        print(f"⚠️ [Auto-Fix] Log file not found at: {log_path}")
-        return
-        
-    try:
-        with open(log_path, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    data = json.loads(line)
-                    tool_calls = data.get("tool_calls", [])
-                    for call in tool_calls:
-                        if call.get("name") == "write_to_file":
-                            args = call.get("args", {})
-                            target = args.get("TargetFile", "")
-                            code = args.get("CodeContent", "")
-                            if "build_graph.py" in target and "import json" in code:
-                                local_vars = {}
-                                exec(code, globals(), local_vars)
-                                print("⚡ [Auto-Fix] Successfully restored and regenerated graph.json!")
-                                fixed_builder_path = r"C:\Users\lifel\.gemini\antigravity-ide\brain\da74de2c-266c-47ad-af2e-5f65d2035794\build_graph.py"
-                                with open(fixed_builder_path, "w", encoding="utf-8") as out:
-                                    out.write(code)
-                                return
-                except Exception as e:
-                    pass
-        print("⚠️ [Auto-Fix] Could not find the original builder script in the conversation logs.")
-    except Exception as e:
-        print(f"⚠️ [Auto-Fix] Failed to fix graph.json: {e}")
-
 if __name__ == '__main__':
     from http.server import HTTPServer
     from socketserver import ThreadingMixIn
-    class ThreadedHTTPServer(ThreadingMixIn, HTTPServer): pass
-    
-    _auto_fix_graph_json()
-    
+    import atexit
+    import signal
+
+    class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+        allow_reuse_address = True
+        daemon_threads = True  # Threads die when main thread exits
+
+    httpd_server = None  # Reference for shutdown handler
+
+    def _graceful_shutdown(signum=None, frame=None):
+        """Kill the deployed server (port 8000) and shut down Node Editor cleanly."""
+        global active_process, httpd_server
+
+        # 1. Kill the deployed main.py server if running
+        if active_process and active_process.poll() is None:
+            print("\n🧹 Stopping deployed server (main.py)...")
+            try:
+                active_process.terminate()
+                active_process.wait(timeout=3)
+            except Exception:
+                try:
+                    active_process.kill()
+                    active_process.wait(timeout=2)
+                except Exception:
+                    pass
+            active_process = None
+            print("   ✅ Deployed server stopped.")
+
+        # 2. Kill any stray processes on port 8000 (safety net)
+        try:
+            kill_cmd = (
+                "Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue "
+                "| Select-Object -ExpandProperty OwningProcess "
+                "| ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }"
+            )
+            subprocess.run(
+                ["powershell", "-Command", kill_cmd],
+                capture_output=True, timeout=5
+            )
+        except Exception:
+            pass
+
+        # 3. Shutdown the Node Editor HTTP server
+        if httpd_server:
+            print("🧹 Shutting down Node Editor server...")
+            try:
+                httpd_server.server_close()
+            except Exception:
+                pass
+            httpd_server = None
+            print("   ✅ Node Editor stopped.")
+
+        print("👋 All resources cleaned up. Goodbye!")
+
+    # Register cleanup for all exit scenarios
+    atexit.register(_graceful_shutdown)
+
+    # Ctrl+C (SIGINT) naturally raises KeyboardInterrupt which we catch below.
+    # We no longer override signal.SIGINT to avoid deadlocks in server shutdown.
+
     print(f"⚡ Node Editor starting on http://localhost:{PORT}")
     print("⚠️  WARNING: Never expose port 8080 in production!")
     print("   Set ENV=production to lock this editor.")
-    
+    print("   Press Ctrl+C to stop (deployed server will also be cleaned up).")
+
+    # Kill any stray processes on port 8080 (safety net)
+    try:
+        import subprocess
+        kill_cmd = (
+            f"Get-NetTCPConnection -LocalPort {PORT} -ErrorAction SilentlyContinue "
+            "| Select-Object -ExpandProperty OwningProcess "
+            "| ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }"
+        )
+        subprocess.run(
+            ["powershell", "-Command", kill_cmd],
+            capture_output=True, timeout=5
+        )
+    except Exception:
+        pass
+
     # Auto-open browser after a short delay
     threading.Timer(0.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
-    
-    with ThreadedHTTPServer(("", PORT), EditorHandler) as httpd:
-        httpd.serve_forever()
+
+    httpd_server = ThreadedHTTPServer(("", PORT), EditorHandler)
+    try:
+        httpd_server.serve_forever()
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        _graceful_shutdown()

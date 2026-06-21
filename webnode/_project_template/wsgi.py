@@ -18,7 +18,6 @@ Full deployment example (Windows/Linux):
     pip install gunicorn
     gunicorn wsgi:application --workers 4 --bind 0.0.0.0:8000 --reload
 """
-import io
 import sys
 import os
 
@@ -39,8 +38,6 @@ class WSGIRequestWrapper:
     Wraps a WSGI environ dict to look like our RequestWrapper.
     So all existing nodes work unchanged with WSGI servers.
     """
-    import urllib.parse as _up
-    import json as _json
 
     def __init__(self, environ):
         import urllib.parse

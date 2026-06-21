@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Ram Traders | Admin Dashboard</title>
+    <!-- Google Fonts -->
+    
+    
+    <!-- Leaflet.js Map CSS -->
+    
+    
+    <style>
+        .admin-container {
+            margin-top: 100px;
+            padding: 0 5%;
+            width: 100%;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .admin-header-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+        }
+
+        .admin-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 15px;
+        }
+
+        .admin-tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-heading);
+            font-size: 16px;
+            font-weight: 600;
+            padding: 8px 20px;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .admin-tab-btn.active,
+        .admin-tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .admin-tab-btn.active {
+            box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--accent-color);
+        }
+
+        .admin-content-section {
+            display: none;
+        }
+
+        .admin-content-section.active {
+            display: block;
+        }
+
+        /* Orders Dashboard */
+        .orders-table-wrapper {
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            background: rgba(12, 14, 25, 0.45);
+        }
+
+        .orders-table th,
+        .orders-table td {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 14px;
+        }
+
+        .orders-table th {
+            background: rgba(15, 20, 35, 0.6);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .orders-table td {
+            color: var(--text-secondary);
+        }
+
+        .orders-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .order-status-select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .order-status-select.pending {
+            color: #f59e0b;
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .order-status-select.successful {
+            color: #22c55e;
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+
+        .order-status-select.unsuccessful {
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        /* Products Configurator Layout */
+        .product-manager-layout {
+            display: grid;
+            grid-template-columns: 0.8fr 1.2fr;
+            gap: 30px;
+        }
+
+        .product-list-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .product-list-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            cursor: pointer;
+        }
+
+        .product-list-card.active {
+            border-color: rgba(245, 158, 11, 0.4);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+        }
+
+        .product-list-card .p-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .product-list-card img {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .product-list-card h4 {
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .product-list-card .p-price {
+            font-size: 12px;
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        /* Products Form Block */
+        .product-form-panel {
+            padding: 30px;
+            background: rgba(12, 14, 25, 0.4);
+        }
+
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .dynamic-rows-container {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+            padding-top: 15px;
+        }
+
+        .dynamic-row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .dynamic-row-header h4 {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .row-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .row-item input {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            flex: 1;
+        }
+
+        .row-remove-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+            transition: color 0.2s;
+        }
+
+        .row-remove-btn:hover {
+            color: var(--secondary-color);
+        }
+
+        /* Logistics Map Tab */
+        .map-wrapper {
+            display: grid;
+            grid-template-columns: 1.3fr 0.7fr;
+            gap: 30px;
+        }
+
+        .map-container-block {
+            height: 480px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1;
+        }
+
+        .map-instructions {
+            padding: 30px;
+            background: rgba(12, 14, 25, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .map-instructions h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .map-instructions p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .map-coords-table {
+            margin-top: 20px;
+            font-size: 13px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .map-coords-table td {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .map-coords-table td.val {
+            text-align: right;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+    </style>
+    <link rel="stylesheet" href="/static/traders.css">
+</head>
+
+<body style="background: var(--bg-dark);">
+
+    <!-- Animated Mesh Background Color Blobs -->
+    <div class="mesh-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="blob blob-4"></div>
+    </div>
+
+    <!-- Admin Panel Navigation Header -->
+    <nav class="main-header glass-card">
+        <div class="header-left">
+            <div class="logo">
+                <a href="#">
+                    <span class="gradient-text">SRI RAM TRADERS</span>
+                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-left: 8px;">ADMIN PORTAL</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <span style="font-size: 14px; color: var(--text-secondary); font-weight: 500;" id="adminUsernameTag">Logged in: admin</span>
+            <button class="btn btn-secondary btn-sm" onclick="logoutAdmin()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+        </div>
+    </nav>
+
+    <div class="admin-container">
+
+        <!-- Tab Selectors -->
+        <div class="admin-tabs">
+            <button class="admin-tab-btn active" onclick="switchAdminTab('orders', this)"><i class="fa-solid fa-list-check"></i> Orders Console</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('products', this)"><i class="fa-solid fa-boxes-packing"></i> Products Editor</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('logistics', this)"><i class="fa-solid fa-map-location-dot"></i> Logistics Area</button>
+        </div>
+
+        <!-- Section 1: Orders Console -->
+        <div class="admin-content-section active" id="orders-tab-section">
+            <div class="orders-table-wrapper glass-card">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Date & Time</th>
+                            <th>Customer Details</th>
+                            <th>Materials Ordered</th>
+                            <th>Total Cost</th>
+                            <th>Order Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminOrdersTableBody">
+                        <!-- Dynamic orders injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2: Products Editor -->
+        <div class="admin-content-section" id="products-tab-section">
+            <div class="product-manager-layout">
+                <!-- Left panel: List products -->
+                <div class="product-list-panel">
+                    <button class="btn btn-secondary" onclick="loadProductFormForCreate()"><i class="fa-solid fa-circle-plus"></i> Add New Product</button>
+                    <div id="adminProductsList" style="display: flex; flex-direction: column; gap: 15px;">
+                        <!-- List rows dynamically injected -->
+                    </div>
+                </div>
+
+                <!-- Right panel: Edit form -->
+                <div class="product-form-panel glass-card">
+                    <h3 id="formTitle">Edit Product Configuration</h3>
+                    <form id="productConfigForm" onsubmit="saveProductConfig(event)" style="margin-top: 20px;">
+                        <input type="hidden" id="prodKey">
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="prodName">Product Name</label>
+                                <input type="text" id="prodName" required placeholder="e.g. Aggregate (Giti)">
+                            </div>
+                            <div class="form-group">
+                                <label for="prodKeyDisplay">Product Key (ID)</label>
+                                <input type="text" id="prodKeyDisplay" required placeholder="e.g. gitti">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="prodPrice">Wholesale Price (₹)</label>
+                                <input type="number" id="prodPrice" required placeholder="e.g. 2800">
+                            </div>
+                            <div class="form-group">
+                                <label for="prodOrigPrice">Original Price (₹)</label>
+                                <input type="number" id="prodOrigPrice" required placeholder="e.g. 3200">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="prodDiscount">Discount Tag</label>
+                                <input type="text" id="prodDiscount" placeholder="e.g. 12% OFF">
+                            </div>
+                            <div class="form-group">
+                                <label for="prodUnit">Quantity Unit</label>
+                                <input type="text" id="prodUnit" required placeholder="e.g. Tons, Bags, K Bricks">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="prodImage">Image Path / Fallback URL</label>
+                                <input type="text" id="prodImage" placeholder="e.g. ./giti.jpg (Optional if uploading file)">
+                            </div>
+                            <div class="form-group">
+                                <label for="prodBrand">Brand / Quarry</label>
+                                <input type="text" id="prodBrand" placeholder="e.g. Ultratech, Balmukund">
+                            </div>
+                        </div>
+
+                        <!-- Product Photos Multi-Uploader Section -->
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label><i class="fa-solid fa-images"></i> Product Photos (Single or Multiple)</label>
+                            <div class="admin-drag-drop-zone"
+                                style="border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 25px; text-align: center; background: rgba(255,255,255,0.01); cursor: pointer; transition: all 0.3s; position: relative;">
+                                <input type="file" id="prodImageUpload" multiple accept="image/*" onchange="handleAdminImageSelect(event)" style="position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 32px; color: var(--accent-color); margin-bottom: 10px;"></i>
+                                <h4 style="font-size: 14px; margin-bottom: 5px;">Drag & Drop files here or click to
+                                    browse</h4>
+                                <p style="font-size: 11px; color: var(--text-secondary);">Supports JPG, PNG, WEBP, GIF.
+                                    Upload multiple photos for product carousel.</p>
+                            </div>
+                            <div id="adminImagePreviewGrid" class="upload-preview-grid"
+                                style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 15px;">
+                                <!-- Image preview cards loaded dynamically -->
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="prodSpeed">Unloading Speed</label>
+                                <input type="text" id="prodSpeed" placeholder="e.g. 3-Hour Delivery">
+                            </div>
+                            <div class="form-group">
+                                <label for="prodRating">Rating Score (1-5)</label>
+                                <input type="text" id="prodRating" placeholder="e.g. 4.7">
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="prodRatingCount">Ratings Count</label>
+                                <input type="text" id="prodRatingCount" placeholder="e.g. (180 reviews)">
+                            </div>
+                            <div class="form-group">
+                                <label for="prodKeywords">Search Keywords (Space separated)</label>
+                                <input type="text" id="prodKeywords" placeholder="cement bags ppc masonry">
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Highlights Row -->
+                        <div class="dynamic-rows-container">
+                            <div class="dynamic-row-header">
+                                <h4>Product Highlights</h4>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="addHighlightRow()"><i class="fa-solid fa-plus"></i> Add Highlight</button>
+                            </div>
+                            <div id="prodHighlightsContainer">
+                                <!-- Dynamic highlight rows -->
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Specs Row -->
+                        <div class="dynamic-rows-container">
+                            <div class="dynamic-row-header">
+                                <h4>Technical Specifications</h4>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="addSpecRow()"><i class="fa-solid fa-plus"></i> Add Spec Field</button>
+                            </div>
+                            <div id="prodSpecsContainer">
+                                <!-- Dynamic spec inputs key-value -->
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 30px; display: flex; gap: 12px; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" style="padding: 12px 30px;">Save Configuration</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Logistics Map -->
+        <div class="admin-content-section" id="logistics-tab-section">
+            <div class="map-wrapper">
+                <div class="map-container-block" id="adminLogisticsMap"></div>
+
+                <div class="map-instructions glass-card">
+                    <div>
+                        <h3>Configure Delivery Boundary</h3>
+                        <p style="margin-top: 10px;">Click anywhere on the map to set the dispatch depot center. Drag
+                            the radius slider below to configure the maximum delivery range boundary for wholesale
+                            orders.</p>
+
+                        <div class="form-group" style="margin-top: 25px;">
+                            <label for="mapRadiusSlider"><i class="fa-solid fa-arrows-left-right"></i> Unloading Boundary Radius</label>
+                            <input type="range" id="mapRadiusSlider" min="5" max="150" value="30" oninput="updateMapRadius(this.value)" style="margin-top: 10px; accent-color: var(--accent-color); width: 100%;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-top: 5px;">
+                                <span>5 km</span>
+                                <span id="radiusValText" style="font-weight: 700; color: var(--accent-color);">30 km</span>
+                                <span>150 km</span>
+                            </div>
+                        </div>
+
+                        <table class="map-coords-table">
+                            <tr>
+                                <td>Depot Latitude:</td>
+                                <td class="val" id="coordLat">25.611</td>
+                            </tr>
+                            <tr>
+                                <td>Depot Longitude:</td>
+                                <td class="val" id="coordLng">85.144</td>
+                            </tr>
+                            <tr>
+                                <td>Active Radius:</td>
+                                <td class="val" id="coordRad">30 km</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="saveLogisticsSettings()" style="width: 100%; margin-top: 30px;"><i class="fa-solid fa-floppy-disk"></i> Save Logistics Area</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Leaflet.js Map script library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // Session validation on load
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchSessionData();
+            loadOrders();
+            loadProducts();
+            initDepotMap();
+        });
+
+        async function fetchSessionData() {
+            try {
+                const res = await fetch('/api/admin/session');
+                const data = await res.json();
+                if (!data.loggedIn) {
+                    window.location.href = '/login.html';
+                } else {
+                    document.getElementById('adminUsernameTag').textContent = `Logged in: ${data.username}`;
+                }
+            } catch (err) {
+                window.location.href = '/login.html';
+            }
+        }
+
+        async function logoutAdmin() {
+            try {
+                const res = await fetch('/api/admin/logout');
+                const result = await res.json();
+                if (result.success) {
+                    window.location.href = '/login.html';
+                }
+            } catch (err) {
+                alert('Could not sign out.');
+            }
+        }
+
+        function switchAdminTab(tabId, btn) {
+            const sections = document.querySelectorAll('.admin-content-section');
+            const buttons = document.querySelectorAll('.admin-tab-btn');
+            
+            sections.forEach(s => s.classList.remove('active'));
+            buttons.forEach(b => b.classList.remove('active'));
+
+            document.getElementById(`${tabId}-tab-section`).classList.add('active');
+            btn.classList.add('active');
+
+            if (tabId === 'logistics' && map) {
+                // Leaflet requires invalidating size if rendered in hidden container
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
+        }
+
+        /* ==========================================================================
+           Orders Dashboard Logic
+           ========================================================================== */
+        async function loadOrders() {
+            try {
+                const res = await fetch('/api/orders');
+                const orders = await res.json();
+                
+                const tableBody = document.getElementById('adminOrdersTableBody');
+                if (orders.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center;">No orders recorded.</td></tr>`;
+                    return;
+                }
+
+                let html = "";
+                orders.forEach(order => {
+                    const date = new Date(order.created_at).toLocaleString('en-IN');
+                    const itemsText = order.items.map(i => `${i.name} (x${i.quantity} ${i.unit})`).join(', ');
+                    
+                    let statusClass = "pending";
+                    if (order.status.toLowerCase() === 'successful') statusClass = 'successful';
+                    if (order.status.toLowerCase() === 'unsuccessful') statusClass = 'unsuccessful';
+
+                    html += `
+                        <tr>
+                            <td style="font-weight: 700;">#RT-${order.id}</td>
+                            <td>${date}</td>
+                            <td>
+                                <strong>${order.customer_name}</strong><br>
+                                <span style="font-size: 12px;"><i class="fa-solid fa-phone"></i> ${order.customer_phone}</span><br>
+                                <span style="font-size: 11px;"><i class="fa-solid fa-location-dot"></i> ${order.customer_address}</span><br>
+                                <span style="font-size: 11px; color: var(--text-muted);">Note: ${order.customer_notes}</span>
+                            </td>
+                            <td>${itemsText}</td>
+                            <td style="font-weight: 700; color: var(--text-primary);">₹${order.total_cost.toLocaleString("en-IN")}</td>
+                            <td>
+                                <select class="order-status-select ${statusClass}" onchange="updateOrderStatus(${order.id}, this.value, this)">
+                                    <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="Successful" ${order.status === 'Successful' ? 'selected' : ''}>Successful</option>
+                                    <option value="Unsuccessful" ${order.status === 'Unsuccessful' ? 'selected' : ''}>Unsuccessful</option>
+                                </select>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tableBody.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function updateOrderStatus(orderId, status, selectEl) {
+            try {
+                const res = await fetch(`/api/orders/${orderId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                
+                const result = await res.json();
+                if (result.success) {
+                    // Update classes for color formatting
+                    selectEl.className = "order-status-select " + status.toLowerCase();
+                    alert(`Order #${orderId} status set to: ${status}`);
+                }
+            } catch (err) {
+                alert('Failed to update status.');
+            }
+        }
+
+        /* ==========================================================================
+           Products Editor Form Controls
+           ========================================================================== */
+        let loadedProducts = [];
+
+        async function loadProducts() {
+            try {
+                const res = await fetch('/api/products');
+                loadedProducts = await res.json();
+                
+                const container = document.getElementById('adminProductsList');
+                let html = "";
+                loadedProducts.forEach(p => {
+                    html += `
+                        <div class="product-list-card glass-card hover-glow" onclick="selectProductToEdit('${p.key}')" id="card-${p.key}">
+                            <div class="p-info">
+                                <img src="${p.image}" alt="${p.name}" onerror="this.src='https://cdn.pixabay.com/photo/2019/12/10/20/59/site-4686908_640.jpg'">
+                                <div>
+                                    <h4>${p.name}</h4>
+                                    <span class="p-price">₹${p.price.toLocaleString("en-IN")} / ${p.unit.slice(0,-1)}</span>
+                                </div>
+                            </div>
+                            <button class="row-remove-btn" onclick="deleteProduct(event, '${p.key}')" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                
+                // Select first product by default if list has items
+                if (loadedProducts.length > 0) {
+                    selectProductToEdit(loadedProducts[0].key);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        let currentProductUploadedImages = []; // stores base64 strings of newly selected images
+        let currentProductExistingImages = []; // stores existing image urls/paths
+
+        function renderAdminImagesPreview() {
+            const container = document.getElementById('adminImagePreviewGrid');
+            if (!container) return;
+
+            let html = "";
+            
+            // Render existing images
+            currentProductExistingImages.forEach((src, idx) => {
+                html += `
+                    <div class="upload-preview-card" style="position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+                        <img src="${src}" alt="existing-${idx}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <span style="position: absolute; bottom: 4px; left: 4px; background: rgba(34,197,94,0.85); color: #fff; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 4px;">Saved</span>
+                        <button type="button" onclick="removeExistingAdminImage(${idx})" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; line-height: 1;">&times;</button>
+                    </div>
+                `;
+            });
+
+            // Render newly uploaded base64 images
+            currentProductUploadedImages.forEach((base64, idx) => {
+                html += `
+                    <div class="upload-preview-card" style="position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+                        <img src="${base64}" alt="new-${idx}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <span style="position: absolute; bottom: 4px; left: 4px; background: rgba(245,158,11,0.85); color: #fff; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 4px;">New</span>
+                        <button type="button" onclick="removeUploadedAdminImage(${idx})" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; line-height: 1;">&times;</button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        window.removeExistingAdminImage = (idx) => {
+            currentProductExistingImages.splice(idx, 1);
+            renderAdminImagesPreview();
+        };
+
+        window.removeUploadedAdminImage = (idx) => {
+            currentProductUploadedImages.splice(idx, 1);
+            renderAdminImagesPreview();
+        };
+
+        window.handleAdminImageSelect = (event) => {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentProductUploadedImages.push(e.target.result);
+                    renderAdminImagesPreview();
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = "";
+        };
+
+        function selectProductToEdit(key) {
+            // Update active states
+            const cards = document.querySelectorAll('.product-list-card');
+            cards.forEach(c => c.classList.remove('active'));
+            const selectedCard = document.getElementById(`card-${key}`);
+            if (selectedCard) selectedCard.classList.add('active');
+
+            const p = loadedProducts.find(item => item.key === key);
+            if (!p) return;
+
+            document.getElementById('formTitle').textContent = `Edit Product: ${p.name}`;
+            document.getElementById('prodKey').value = p.key;
+            document.getElementById('prodKeyDisplay').value = p.key;
+            document.getElementById('prodKeyDisplay').disabled = true; // Key cannot be edited
+            document.getElementById('prodName').value = p.name;
+            document.getElementById('prodPrice').value = p.price;
+            document.getElementById('prodOrigPrice').value = p.original_price;
+            document.getElementById('prodDiscount').value = p.discount || '';
+            document.getElementById('prodUnit').value = p.unit;
+            document.getElementById('prodImage').value = p.image;
+            document.getElementById('prodBrand').value = p.brand || '';
+            document.getElementById('prodSpeed').value = p.speed || '';
+            document.getElementById('prodRating').value = p.rating || '';
+            document.getElementById('prodRatingCount').value = p.rating_count || '';
+            document.getElementById('prodKeywords').value = p.keywords || '';
+
+            // Initialize image collections
+            currentProductUploadedImages = [];
+            currentProductExistingImages = Array.isArray(p.thumbnails) ? [...p.thumbnails] : (p.image ? [p.image] : []);
+            renderAdminImagesPreview();
+
+            // Set highlights
+            const highlightContainer = document.getElementById('prodHighlightsContainer');
+            highlightContainer.innerHTML = "";
+            p.highlights.forEach(h => {
+                addHighlightRow(h);
+            });
+
+            // Set specs table
+            const specsContainer = document.getElementById('prodSpecsContainer');
+            specsContainer.innerHTML = "";
+            Object.entries(p.specs).forEach(([k, val]) => {
+                addSpecRow(k, val);
+            });
+        }
+
+        function loadProductFormForCreate() {
+            document.getElementById('formTitle').textContent = "Add New Product";
+            document.getElementById('prodKey').value = "";
+            document.getElementById('prodKeyDisplay').value = "";
+            document.getElementById('prodKeyDisplay').disabled = false; // key required for new product
+            document.getElementById('prodName').value = "";
+            document.getElementById('prodPrice').value = "";
+            document.getElementById('prodOrigPrice').value = "";
+            document.getElementById('prodDiscount').value = "";
+            document.getElementById('prodUnit').value = "";
+            document.getElementById('prodImage').value = "";
+            document.getElementById('prodBrand').value = "";
+            document.getElementById('prodSpeed').value = "";
+            document.getElementById('prodRating').value = "4.5";
+            document.getElementById('prodRatingCount').value = "(0 reviews)";
+            document.getElementById('prodKeywords').value = "";
+            
+            document.getElementById('prodHighlightsContainer').innerHTML = "";
+            document.getElementById('prodSpecsContainer').innerHTML = "";
+            
+            // Initialize image collections
+            currentProductUploadedImages = [];
+            currentProductExistingImages = [];
+            renderAdminImagesPreview();
+
+            // Remove active list item selection
+            const cards = document.querySelectorAll('.product-list-card');
+            cards.forEach(c => c.classList.remove('active'));
+
+            // Focus name
+            document.getElementById('prodName').focus();
+        }
+
+        function addHighlightRow(value = "") {
+            const container = document.getElementById('prodHighlightsContainer');
+            const div = document.createElement('div');
+            div.className = "row-item";
+            div.innerHTML = `
+                <input type="text" class="highlight-input" value="${value}" placeholder="Highlight description point...">
+                <button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function addSpecRow(key = "", value = "") {
+            const container = document.getElementById('prodSpecsContainer');
+            const div = document.createElement('div');
+            div.className = "row-item";
+            div.innerHTML = `
+                <input type="text" class="spec-key-input" value="${key}" placeholder="Attribute Name (e.g. Dimensions)" style="flex: 0.8;">
+                <input type="text" class="spec-val-input" value="${value}" placeholder="Value (e.g. 9x4.5x3 Inches)" style="flex: 1.2;">
+                <button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            container.appendChild(div);
+        }
+
+        async function saveProductConfig(event) {
+            event.preventDefault();
+            
+            const isNew = document.getElementById('prodKey').value === "";
+            const key = isNew ? document.getElementById('prodKeyDisplay').value.trim() : document.getElementById('prodKey').value;
+            
+            if (!key) {
+                alert('Please provide a unique product key identifier.');
+                return;
+            }
+
+            // Gather highlights
+            const highlightInputs = document.querySelectorAll('.highlight-input');
+            const highlights = [];
+            highlightInputs.forEach(i => {
+                if (i.value.trim()) highlights.push(i.value.trim());
+            });
+
+            // Gather specs key-value
+            const specKeyInputs = document.querySelectorAll('.spec-key-input');
+            const specValInputs = document.querySelectorAll('.spec-val-input');
+            const specs = {};
+            specKeyInputs.forEach((input, index) => {
+                const k = input.value.trim();
+                const v = specValInputs[index]?.value.trim();
+                if (k && v) {
+                    specs[k] = v;
+                }
+            });
+
+            const data = {
+                key,
+                name: document.getElementById('prodName').value,
+                price: parseFloat(document.getElementById('prodPrice').value),
+                original_price: parseFloat(document.getElementById('prodOrigPrice').value),
+                discount: document.getElementById('prodDiscount').value || null,
+                unit: document.getElementById('prodUnit').value,
+                image: document.getElementById('prodImage').value || '',
+                brand: document.getElementById('prodBrand').value || null,
+                speed: document.getElementById('prodSpeed').value || null,
+                rating: document.getElementById('prodRating').value || null,
+                rating_count: document.getElementById('prodRatingCount').value || null,
+                keywords: document.getElementById('prodKeywords').value || '',
+                highlights,
+                specs,
+                uploadedImages: currentProductUploadedImages,
+                existingImages: currentProductExistingImages
+            };
+
+            try {
+                const res = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await res.json();
+                if (result.success) {
+                    alert('Product configuration saved successfully!');
+                    loadProducts(); // reload listings
+                } else {
+                    alert('Error saving product: ' + result.error);
+                }
+            } catch (err) {
+                alert('Error connecting to backend.');
+            }
+        }
+
+        async function deleteProduct(event, key) {
+            event.stopPropagation(); // prevent clicking card selection
+            if (!confirm(`Are you sure you want to delete product '${key}' from catalog?`)) return;
+
+            try {
+                const res = await fetch(`/api/products/${key}`, {
+                    method: 'DELETE'
+                });
+                const result = await res.json();
+                if (result.success) {
+                    alert('Product deleted.');
+                    loadProducts();
+                } else {
+                    alert('Failed to delete: ' + result.error);
+                }
+            } catch (err) {
+                alert('Failed to delete product.');
+            }
+        }
+
+        /* ==========================================================================
+           Logistics Leaflet Map Drawing Widgets
+           ========================================================================== */
+        let map;
+        let mapCircle;
+        let mapMarker;
+        
+        let currentLat = 25.611;
+        let currentLng = 85.144;
+        let currentRadius = 30; // 30 km radius boundary
+
+        async async function initDepotMap() {
+            // Fetch existing settings coordinates if any
+            try {
+                const res = await fetch('/api/settings/logistics_boundary');
+                const result = await res.json();
+                if (result.success && result.value) {
+                    const saved = JSON.parse(result.value);
+                    currentLat = saved.lat || currentLat;
+                    currentLng = saved.lng || currentLng;
+                    currentRadius = saved.radius || currentRadius;
+                }
+            } catch (err) {
+                console.error('Failed to load settings:', err);
+            }
+
+            // Draw map canvas centered around current depot coordinates
+            map = L.map('adminLogisticsMap').setView([currentLat, currentLng], 9);
+
+            // Add standard OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Create depot marker (draggable)
+            mapMarker = L.marker([currentLat, currentLng], { draggable: true }).addTo(map);
+            
+            // Create range area circle
+            mapCircle = L.circle([currentLat, currentLng], {
+                color: 'var(--accent-color)',
+                fillColor: 'rgba(245, 158, 11, 0.15)',
+                fillOpacity: 0.35,
+                radius: currentRadius * 1000 // Convert km to meters
+            }).addTo(map);
+
+            // Sync coordinates on drag
+            mapMarker.on('drag', function (e) {
+                const position = mapMarker.getLatLng();
+                currentLat = parseFloat(position.lat.toFixed(5));
+                currentLng = parseFloat(position.lng.toFixed(5));
+                
+                mapCircle.setLatLng(position);
+                updateCoordsDisplay();
+            });
+
+            // Set coordinates on click anywhere on map
+            map.on('click', function(e) {
+                const coords = e.latlng;
+                currentLat = parseFloat(coords.lat.toFixed(5));
+                currentLng = parseFloat(coords.lng.toFixed(5));
+                
+                mapMarker.setLatLng(coords);
+                mapCircle.setLatLng(coords);
+                updateCoordsDisplay();
+            });
+
+            // Set initial controls value
+            document.getElementById('mapRadiusSlider').value = currentRadius;
+            updateCoordsDisplay();
+        }
+
+        function updateMapRadius(val) {
+            currentRadius = parseInt(val) || 30;
+            document.getElementById('radiusValText').textContent = `${currentRadius} km`;
+            
+            if (mapCircle) {
+                mapCircle.setRadius(currentRadius * 1000);
+            }
+            updateCoordsDisplay();
+        }
+
+        function updateCoordsDisplay() {
+            document.getElementById('coordLat').textContent = currentLat;
+            document.getElementById('coordLng').textContent = currentLng;
+            document.getElementById('coordRad').textContent = `${currentRadius} km`;
+            document.getElementById('coordRad').textContent = `${currentRadius} km`;
+        }
+
+        async function saveLogisticsSettings() {
+            const data = {
+                key: 'logistics_boundary',
+                value: JSON.stringify({
+                    lat: currentLat,
+                    lng: currentLng,
+                    radius: currentRadius
+                })
+            };
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await res.json();
+                if (result.success) {
+                    alert('Logistics delivery boundary coordinates saved to database!');
+                } else {
+                    alert('Failed to save settings: ' + result.error);
+                }
+            } catch (err) {
+                alert('Could not save logistics settings to server.');
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,7 +1,6 @@
 # core/validators.py
 import html
 import re
-from nodes.response import Response
 
 # ─────────────────────────────────────
 # Exception

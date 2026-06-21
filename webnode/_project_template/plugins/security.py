@@ -203,14 +203,22 @@ class CSRFNode(BaseNode):
         if method == 'GET':
             token = CSRFNode.get_or_create_token(client_ip)
             _get_context(request)['csrf_token'] = token
+            if request.path == '/api/csrf':
+                import json
+                from nodes.response import Response
+                return Response.json({'csrf_token': token})
             return super().process(request)
 
         elif method == 'POST':
             expected = CSRFNode.get_or_create_token(client_ip)
-            submitted = _get_param(request, 'csrf_token')
+            submitted = _get_param(request, 'csrf_token') or _get_header(request, 'X-CSRF-Token')
             
             if not expected or not submitted:
                 print(f"⚠️  [CSRF] Missing token from {client_ip}")
+                if request.path.startswith('/api/'):
+                    import json
+                    from nodes.response import Response
+                    return Response.json({'success': False, 'error': 'CSRF token missing.'}, 403)
                 return (
                     '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;'
                     'padding:60px;background:#0f172a;color:#e2e8f0">'
@@ -221,6 +229,10 @@ class CSRFNode(BaseNode):
             # Constant-time comparison
             if not secrets.compare_digest(expected, submitted):
                 print(f"⚠️  [CSRF] Token mismatch from {client_ip}")
+                if request.path.startswith('/api/'):
+                    import json
+                    from nodes.response import Response
+                    return Response.json({'success': False, 'error': 'CSRF validation failed.'}, 403)
                 return (
                     '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;'
                     'padding:60px;background:#0f172a;color:#e2e8f0">'
