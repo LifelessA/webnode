@@ -80,7 +80,7 @@ python node_editor/node_backend.py
 ```
 Open your browser at **http://localhost:8080**.
 
-![Node Editor GUI](docs/images/node_editor.png)
+![Node Editor GUI](docs/images/node_Editor.png)
 
 ![Editor GUI](docs/images/edit.png)
 
