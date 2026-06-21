@@ -4,7 +4,7 @@ A custom, powerful, lightweight node-based web framework for Python. Built aroun
 
 Instead of traditional decorators (like Flask or Django `@app.route`), WebNode gives you absolute control over the request lifecycle by wiring nodes together—either programmatically in Python, visually via the **built-in drag-and-drop Node Editor GUI**, or via the new **AI Editor**.
 
-**🔥 What's New in v1.3.0 (The "AI & Visual Development" Update):**
+**🔥 What's New in v1.4.1 (The "AI & Visual Development" Update):**
 *   **AI Editor**: A revolutionary new AI backend integrated directly into your workspace. Chat with the AI agent to automatically generate nodes, CSS, HTML, logic components, and UI interfaces on the canvas.
 *   **Enhanced Visual Node Editor**: Improved `graph.json` state restoration via IDE transcript logs to auto-fix corrupt canvas settings.
 *   **Full Modular Architecture**: Built-in architecture with dedicated `nodes/`, `core/`, `plugins/`, `static/`, and `templates/` directories automatically scaffolded for you.
@@ -58,7 +58,7 @@ python main.py
 Visit `http://localhost:8000` in your browser.
 
 ### 4. Run the Server (Production)
-For production environments, WebNode v1.3.0 is fully WSGI compliant. Don't run `main.py` directly; use Gunicorn.
+For production environments, WebNode v1.4.1 is fully WSGI compliant. Don't run `main.py` directly; use Gunicorn.
 ```bash
 # Requires gunicorn (Linux/Mac)
 pip install gunicorn
