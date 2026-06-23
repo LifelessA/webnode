@@ -3,10 +3,12 @@ import os
 
 
 def find_package_data(package_dir):
-    """Recursively find all files in _project_template and _editor_files."""
+    """Recursively find all non-python files in the package."""
     result = []
     for root, dirs, files in os.walk(package_dir):
         for fname in files:
+            if fname.endswith('.py') or fname.endswith('.pyc') or '__pycache__' in root:
+                continue
             full = os.path.join(root, fname)
             rel = os.path.relpath(full, os.path.dirname(package_dir))
             # Make it relative to the package (webnode/)
@@ -20,14 +22,9 @@ setup(
     version='1.5.0',
     packages=find_packages(),
     package_data={
-        'webnode': find_package_data(os.path.join(os.path.dirname(__file__), 'webnode', '_project_template'))
+        'webnode': find_package_data(os.path.join(os.path.dirname(__file__), 'webnode'))
     },
     include_package_data=True,
-    entry_points={
-        'console_scripts': [
-            'node-web=webnode.cli:main',
-        ],
-    },
     python_requires='>=3.8',
     author='LifelessA',
     description='WebNode Framework — Visual node-based web framework for Python (v1.5.0)',
