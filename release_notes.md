@@ -1,3 +1,8 @@
+# WebNode v1.5.0 🚀 Latest Update
+
+* Added test folder credentials copy and logic improvements.
+* Upgraded webnode package to 1.5.0.
+
 # WebNode v1.3.0 🚀 The AI & Visual Development Update
 
 This release brings revolutionary updates to the WebNode framework, introducing powerful new tools to build web applications visually and programmatically!

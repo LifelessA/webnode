@@ -17,7 +17,7 @@ def find_package_data(package_dir):
 
 setup(
     name='webnode',
-    version='1.4.1',
+    version='1.5.0',
     packages=find_packages(),
     package_data={
         'webnode': find_package_data(os.path.join(os.path.dirname(__file__), 'webnode', '_project_template'))
@@ -30,7 +30,7 @@ setup(
     },
     python_requires='>=3.8',
     author='LifelessA',
-    description='WebNode Framework — Visual node-based web framework for Python (v1.4.1)',
+    description='WebNode Framework — Visual node-based web framework for Python (v1.5.0)',
     long_description=open('README.md', encoding='utf-8').read() if os.path.exists('README.md') else '',
     long_description_content_type='text/markdown',
     url='https://github.com/LifelessA/webnode',

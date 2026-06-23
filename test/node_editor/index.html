@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Node Editor</title>
+<link href="styles.css" rel="stylesheet"/>
+<!-- Monaco Editor Core -->
+<script>var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } };</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.nls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.js"></script>
+</head>
+<body>
+<!-- Top Toolbar -->
+<div id="toolbar">
+<div class="logo">⚡ Node Editor</div>
+<div class="controls" style="display:flex; align-items:center;">
+<button class="btn btn-primary" id="btn-deploy">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Deploy &amp; Run</span>
+</button>
+<button class="btn btn-danger" id="btn-stop">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Stop Server</span>
+</button>
+<button class="btn btn-secondary" id="btn-save">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Save JSON</span>
+</button>
+<button class="btn btn-secondary" id="btn-clear">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Clear Canvas</span>
+</button>
+<button class="btn btn-secondary" id="btn-settings" onclick="openSettings()" style="margin-left: 10px;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">⚙ Settings</span>
+</button>
+<button class="btn btn-danger" id="btn-reset-db" onclick="resetDatabase()" style="margin-left: 10px;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">🗄️ Reset Database</span>
+</button>
+</div>
+<div id="status-indicator">● Offline</div>
+</div>
+<!-- Main Workspace -->
+<div id="workspace">
+<!-- Sidebar: Node Palette -->
+<div id="sidebar">
+<h3>Library</h3>
+<p style="font-size: 0.75rem; color: #aaa; margin-bottom: 15px;">
+                Drag to add nodes.<br/>
+                Double-click node or wire to delete.
+            </p>
+<div class="category">Core</div>
+<div class="palette-node" data-type="ServerNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Server Node</span>
+<span class="hover-text">Server Node</span>
+</span>
+</div>
+<div class="palette-node" data-type="HTTPRequestsNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">HTTP Request</span>
+<span class="hover-text">HTTP Request</span>
+</span>
+</div>
+<div class="palette-node" data-type="URLNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">URL Router</span>
+<span class="hover-text">URL Router</span>
+</span>
+</div>
+<div class="palette-node" data-type="LogicNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Logic (Python)</span>
+<span class="hover-text">Logic (Python)</span>
+</span>
+</div>
+<div class="palette-node" data-type="JSNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Logic (Backend JS)</span>
+<span class="hover-text">Logic (Backend JS)</span>
+</span>
+</div>
+<div class="palette-node" data-type="ContextNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Context (Python)</span>
+<span class="hover-text">Context (Python)</span>
+</span>
+</div>
+<div class="category">VIEWS &amp; DB</div>
+<div class="palette-node" data-type="RenderNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Render Template</span>
+<span class="hover-text">Render Template</span>
+</span>
+</div>
+<div class="palette-node" data-type="CSSNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">CSS Style</span>
+<span class="hover-text">CSS Style</span>
+</span>
+</div>
+<div class="palette-node" data-type="ClientJSNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Client JS (Browser)</span>
+<span class="hover-text">Client JS (Browser)</span>
+</span>
+</div>
+<div class="palette-node" data-type="ModelNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Model (SQL)</span>
+<span class="hover-text">Model (SQL)</span>
+</span>
+</div>
+<div class="category">Security &amp; Logging</div>
+<div class="palette-node" data-type="ActionLoggerNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Action Logger</span>
+<span class="hover-text">Action Logger</span>
+</span>
+</div>
+<div class="palette-node" data-type="AntiBotNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Anti-Bot</span>
+<span class="hover-text">Anti-Bot</span>
+</span>
+</div>
+<div class="palette-node" data-type="RateLimitNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Rate Limit</span>
+<span class="hover-text">Rate Limit</span>
+</span>
+</div>
+<div class="palette-node" data-type="CSRFNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">CSRF Token</span>
+<span class="hover-text">CSRF Token</span>
+</span>
+</div>
+<div class="palette-node" data-type="ScreenProtectionNode" draggable="true">
+<span class="palette-text-wrapper">
+<span class="actual-text">Screen Protection</span>
+<span class="hover-text">Screen Protection</span>
+</span>
+</div>
+</div>
+<!-- Canvas Area -->
+<div id="canvas-container">
+<!-- SVG for Wires (Noodles) -->
+<svg height="100%" id="wire-layer" width="100%"></svg>
+<!-- Nodes Container (Pan/Zoom layer) -->
+<div id="canvas-layer">
+<!-- Nodes will be injected here dynamically -->
+<!-- Default Server Node Example -->
+<div class="node server-node status-green" data-type="ServerNode" id="node-1" style="left: 100px; top: 100px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+                        Server Node
+                        
+</span></div><div class="port out-port" data-node="node-1" data-port="out"></div></div>
+<div class="node-body">
+<label>IP Address</label>
+<input class="node-input ip-input" type="text" value="127.0.0.1"/>
+<label>Port</label>
+<input class="node-input port-input" type="number" value="8000"/>
+<div class="node-actions">
+<button class="node-btn">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Live/Stop</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Example URL Node -->
+<div class="node url-node status-red" data-type="URLNode" id="node-2" style="left: 450px; top: 100px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                        URL Router
+                        
+</span></div><div class="port in-port" data-node="node-2" data-port="in"></div><div class="port out-port" data-node="node-2" data-port="out"></div></div>
+<div class="node-body">
+<label>Path</label>
+<input class="node-input path-input" type="text" value="/api/data"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Node Templates for Drag & Drop -->
+<div id="node-templates" style="display: none;">
+<!-- ServerNode Template -->
+<div class="node server-node status-red" data-type="ServerNode">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+                Server Node
+                
+</span></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>IP Address</label>
+<input class="node-input ip-input" type="text" value="127.0.0.1"/>
+<label>Port</label>
+<input class="node-input port-input" type="number" value="8000"/>
+<div class="node-actions"><button class="node-btn">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Live/Stop</span>
+</button></div>
+</div>
+</div>
+<!-- HTTPRequest Template -->
+<div class="node http-node status-red" data-type="HTTPRequestsNode">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                HTTP Request
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<p style="font-size: 0.8rem; color: #666; text-align: center;">Parses raw request</p>
+</div>
+</div>
+<!-- URLNode Template -->
+<div class="node url-node status-red" data-type="URLNode">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                URL Router
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>Path</label>
+<input class="node-input path-input" type="text" value="/"/>
+</div>
+</div>
+<!-- LogicNode Template (Monaco) -->
+<div class="node logic-node status-red" data-type="LogicNode" style="width: 400px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                Logic (Python)
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>Function Logic (def node_logic(request):)</label>
+<!-- Monaco instance will mount here -->
+<div class="monaco-container"></div>
+</div>
+</div>
+<!-- JSNode Template (Monaco) -->
+<div class="node js-node status-red" data-type="JSNode" style="width: 400px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                Logic (JavaScript)
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>Function Logic (function process_logic(request) { ... })</label>
+<!-- Monaco instance will mount here -->
+<div class="monaco-container"></div>
+<div class="node-actions" style="margin-top: 10px; display: flex; justify-content: flex-end;">
+<button class="node-btn js-save-btn" style="border-radius: 4px; padding: 4px 8px;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Save Code</span>
+</button>
+</div>
+</div>
+</div>
+<!-- RenderNode Template -->
+<div class="node render-node status-red" data-type="RenderNode" style="width: 400px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                Render Template
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>HTML Content</label>
+<div class="monaco-container"></div>
+</div>
+</div>
+<!-- CSSNode Template -->
+<div class="node css-node status-red" data-type="CSSNode" style="width: 420px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                🎨 CSS Style
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>CSS Code</label>
+<div class="monaco-container" style="height: 250px;"></div>
+</div>
+</div>
+<!-- ModelNode Template -->
+<div class="node model-node status-red" data-type="ModelNode" style="width: 320px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                Model (SQL Database)
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>SQL Query</label>
+<input class="node-input query-input" type="text" value="SELECT * FROM users"/>
+<label>Params Mapping (comma separated)</label>
+<input class="node-input params-input" placeholder="e.g., id, name" type="text"/>
+<label>Context Key</label>
+<input class="node-input context-input" type="text" value="data"/>
+<div style="display:flex; align-items:center; gap:5px; margin-top:5px;">
+<input class="is-write-input" type="checkbox"/> <label style="margin:0;">Is Write Query?</label>
+</div>
+</div>
+</div>
+<!-- ContextNode Template (Monaco) -->
+<div class="node context-node status-red" data-type="ContextNode" style="width: 400px;">
+<div class="node-header"><div class="border"></div><div class="icons"><span>
+
+                Context (Python)
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<label>Update request.context (def node_logic(request):)</label>
+<div class="monaco-container"></div>
+</div>
+</div>
+<!-- Security specific Templates -->
+<div class="node logger-node status-green" data-type="ActionLoggerNode">
+<div class="node-header bg-dark"><div class="border"></div><div class="icons"><span>
+
+                Action Logger
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<p style="font-size: 0.8rem; color: #666; text-align: center;">Logs requests to /core/logs</p>
+</div>
+</div>
+<div class="node antibot-node status-green" data-type="AntiBotNode">
+<div class="node-header bg-dark"><div class="border"></div><div class="icons"><span>
+
+                Anti-Bot Filter
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<p style="font-size: 0.8rem; color: #666; text-align: center;">Blocks scrapers/crawlers</p>
+</div>
+</div>
+<div class="node ratelimit-node status-green" data-type="RateLimitNode">
+<div class="node-header bg-dark"><div class="border"></div><div class="icons"><span>
+
+                Rate Limiter
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<p style="font-size: 0.8rem; color: #666; text-align: center;">Prevents spam / DDoS</p>
+</div>
+</div>
+<div class="node csrf-node status-green" data-type="CSRFNode">
+<div class="node-header bg-dark"><div class="border"></div><div class="icons"><span>
+
+                CSRF Shield
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<p style="font-size: 0.8rem; color: #666; text-align: center;">Validates POST token</p>
+</div>
+</div>
+<div class="node screen-node status-green" data-type="ScreenProtectionNode">
+<div class="node-header bg-dark"><div class="border"></div><div class="icons"><span>
+
+                Screen Protection
+                
+</span></div><div class="port in-port" data-port="in"></div><div class="port out-port" data-port="out"></div></div>
+<div class="node-body">
+<p style="font-size: 0.8rem; color: #666; text-align: center;">Blocks screenshots/copy</p>
+</div>
+</div>
+</div>
+<!-- Right Click Menu (Optional Future Use) -->
+<div class="hidden" id="context-menu">
+<div class="menu-item" id="delete-node">Delete Node</div>
+</div>
+<!-- Fullscreen Editor Modal -->
+<div id="fullscreen-editor-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; flex-direction: column; padding: 40px; box-sizing: border-box;">
+<div style="display: flex; justify-content: space-between; align-items: center; background: #2d2d2d; padding: 15px 20px; color: white; border-top-left-radius: 8px; border-top-right-radius: 8px; border: 1px solid #3e3e42; border-bottom: none;">
+<h3 id="fullscreen-editor-title" style="margin: 0; font-weight: normal;">Edit Code</h3>
+<div>
+<button class="btn btn-primary" id="fullscreen-save-btn" style="margin-right: 10px;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Save &amp; Close</span>
+</button>
+<button class="btn btn-secondary" id="fullscreen-close-btn" style="padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Cancel</span>
+</button>
+</div>
+</div>
+<div style="flex: 1; position: relative; border: 1px solid #3e3e42; border-top: none; border-bottom: none; display: flex; flex-direction: column;">
+<div id="fullscreen-monaco-container" style="flex: 1; background: #1e1e1e; overflow: hidden;"></div>
+<!-- AI Loading Overlay -->
+<div id="ai-loading-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(30,30,30,0.8); z-index: 10; flex-direction: column; justify-content: center; align-items: center; color: white;">
+<div class="loader-spinner" style="width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #00d2ff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+<div style="font-size: 1.2rem; background: linear-gradient(90deg, #00d2ff, #3a7bd5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: pulse 1.5s infinite;">AI is architecting your code...</div>
+<div style="font-size: 0.9rem; color: #888; margin-top: 10px;">Please wait while the logic is being generated</div>
+</div>
+<style>
+                @keyframes spin { 100% { transform: rotate(360deg); } }
+                @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
+            </style>
+</div>
+
+<!-- Start Premium Chat UI -->
+<div id="poda" style="padding: 10px; padding-bottom: 20px; padding-top: 15px; background: #2d2d2d; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border: 1px solid #3e3e42; border-top: none;">
+  <div class="glow"></div>
+  <div class="darkBorderBg"></div>
+  <div class="darkBorderBg"></div>
+  <div class="darkBorderBg"></div>
+  <div class="white"></div>
+  <div class="border"></div>
+
+  <div id="main">
+    <div class="ai-chat-input">
+      <div class="chat-container">
+        <div class="chat-header">
+          <div class="status-section">
+            <div class="status-indicator"></div>
+            <span class="status-text" id="ai-status-text">Ready</span>
+          </div>
+          <div class="badges">
+            <span class="badge badge-gpt" id="active-model-badge">GPT-4</span>
+            <span class="badge badge-pro">Pro</span>
+          </div>
+        </div>
+
+        <div class="input-section">
+          <textarea
+            id="ai-prompt-input"
+            rows="2"
+            class="main-input"
+            placeholder="Ask AI to write or modify code for this node..."
+          ></textarea>
+          <div class="gradient-overlay"></div>
+        </div>
+
+        <div class="controls-section">
+          <div class="controls-row">
+            <div class="left-controls">
+                <button class="btn btn-secondary" disabled="" id="btn-seed-generate" onclick="generateFromSeed()" style="padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; z-index: 10;">
+                    <span class="shadow"></span>
+                    <span class="edge"></span>
+                    <span class="front">🌱 Seed</span>
+                </button>
+            </div>
+
+            <div class="right-controls">
+              <button class="send-btn" id="ai-generate-btn" aria-label="Send message" type="button" onclick="toggleAIGeneration()">
+                <svg
+                  class="send-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="floating-overlay"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- End Premium Chat UI -->
+</div>
+<!-- Settings Modal -->
+<div id="settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; justify-content: center; align-items: center;">
+<div style="background: #2d2d2d; border-radius: 8px; width: 500px; max-width: 90%; border: 1px solid #3e3e42; color: white; display: flex; flex-direction: column;">
+<div style="padding: 15px 20px; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center;">
+<h3 style="margin: 0; font-weight: normal;">⚙ AI Provider Settings</h3>
+<button onclick="closeSettings()" style="font-size: 20px; cursor: pointer;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">×</span>
+</button>
+</div>
+<div style="padding: 20px; flex: 1; overflow-y: auto;">
+<div style="margin-bottom: 15px;">
+<label style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.9rem;">Active AI Provider</label>
+<select id="provider-select" onchange="toggleProviderFields()" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;">
+<option value="ollama">Ollama (Local)</option>
+<option value="gemini">Google Gemini</option>
+<option value="gpt">OpenAI GPT</option>
+<option value="claude">Anthropic Claude</option>
+<option value="deepseek">DeepSeek</option>
+<option value="openrouter">OpenRouter</option>
+<option value="nvidia">Nvidia NIM</option>
+<option value="glm">GLM (Zhipu AI)</option>
+<option value="dough">Dough.id (Free API Gateway)</option>
+<option value="custom">Custom Endpoint</option>
+</select>
+</div>
+<hr style="border: none; border-top: 1px solid #3e3e42; margin: 15px 0;"/>
+<div id="provider-keys-container">
+<div class="provider-fields-group" data-provider="ollama" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Ollama API Endpoint</label><input id="endpoint-ollama" placeholder="http://localhost:11434/api/generate" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Ollama Model Name</label><input id="model-ollama" placeholder="gemma4:26b" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="gemini" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Gemini API Key</label><input id="key-gemini" placeholder="AIzaSy..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Gemini Model Name</label><input id="model-gemini" placeholder="gemini-1.5-flash" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="gpt" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">OpenAI API Key</label><input id="key-gpt" placeholder="sk-proj-..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">OpenAI Model Name</label><input id="model-gpt" placeholder="gpt-4o-mini" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="claude" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Claude API Key</label><input id="key-claude" placeholder="sk-ant-..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Claude Model Name</label><input id="model-claude" placeholder="claude-3-5-sonnet-20241022" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="deepseek" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">DeepSeek API Key</label><input id="key-deepseek" placeholder="sk-..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">DeepSeek Model Name</label><input id="model-deepseek" placeholder="deepseek-chat" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="openrouter" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">OpenRouter API Key</label><input id="key-openrouter" placeholder="sk-or-..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">OpenRouter Model Name</label><input id="model-openrouter" placeholder="google/gemini-2.0-flash-exp:free" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="nvidia" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Nvidia API Key</label><input id="key-nvidia" placeholder="nvapi-..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Nvidia Model Name</label><input id="model-nvidia" placeholder="qwen/qwen3-coder-480b-a35b-instruct" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="glm" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">GLM API Key</label><input id="key-glm" placeholder="api-key..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">GLM Model Name</label><input id="model-glm" placeholder="glm-4-flash" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="dough" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Dough.id API Key</label><input id="key-dough" placeholder="sk-dough-..." style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Dough.id Model Name</label><input id="model-dough" placeholder="deepseek-chat" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+<div class="provider-fields-group" data-provider="custom" style="display:none;">
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Custom API Key</label><input id="key-custom" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="password"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Custom Model Name</label><input id="model-custom" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+<div style="margin-bottom: 10px;"><label style="display:block; margin-bottom:5px; color:#aaa; font-size:0.9rem;">Custom Endpoint URL</label><input id="endpoint-custom" placeholder="https://api.yourdomain.com/v1/chat/completions" style="width: 100%; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/></div>
+</div>
+</div>
+<hr style="border: none; border-top: 1px solid #3e3e42; margin: 20px 0;"/>
+<div style="margin-bottom: 15px;">
+<label style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.9rem;">Test Connection</label>
+<div style="display: flex; gap: 10px; margin-bottom: 10px;">
+<input id="api-test-prompt" placeholder="Say hello..." style="flex: 1; padding: 8px; background: #1e1e1e; color: white; border: 1px solid #555; border-radius: 4px;" type="text"/>
+<button class="btn btn-secondary" onclick="testAPIConnection()" style="min-width: 130px;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">🔌 Test API</span>
+</button>
+</div>
+<textarea id="api-test-output" placeholder="Streamed response will appear here..." readonly="" style="width: 100%; height: 80px; padding: 8px; background: #1a1a1a; color: #d4d4d4; border: 1px solid #3e3e42; border-radius: 4px; resize: vertical; font-family: monospace; font-size: 13px;"></textarea>
+</div>
+</div>
+<div style="padding: 15px 20px; border-top: 1px solid #3e3e42; display: flex; justify-content: flex-end; gap: 10px; background: #252526; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+<button class="btn btn-secondary" onclick="closeSettings()" style="padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Cancel</span>
+</button>
+<button class="btn btn-primary" onclick="saveSettings()" style="padding: 6px 12px;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front">Save Config</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Master Architect Prompt -->
+<div id="master-prompt-container" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 60%; background: rgba(30,30,30,0.85); backdrop-filter: blur(10px); border: 1px solid #3e3e42; border-radius: 8px; display: none; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 100;">
+<input id="master-architect-prompt" placeholder="Describe the website or node architecture you want to build... (e.g. 'A medical hemoglobin test app')" style="flex: 1; background: transparent; border: none; color: white; font-size: 14px; outline: none; padding: 0 10px;" type="text"/>
+<button class="btn btn-primary" id="btn-master-architect" onclick="runMasterArchitect()" style="padding: 8px 16px; border-radius: 4px; font-weight: bold; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+<span class="shadow"></span>
+<span class="edge"></span>
+<span class="front"><span>✨</span> Build Architecture</span>
+</button>
+</div>
+<script src="canvas.js?v=6"></script>
+</body>
+</html>
