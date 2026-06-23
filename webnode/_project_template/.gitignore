@@ -1,0 +1,16 @@
+# Node-Flow / WebNode
+.secret_key
+.env
+db.sqlite3
+db.sqlite3-shm
+db.sqlite3-wal
+__pycache__/
+*.pyc
+*.pyo
+node_editor/graph.json
+core/logs/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/

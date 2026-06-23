@@ -1,0 +1,103 @@
+{
+    "system_instruction": "You are a local AI code generator for the WebNode framework. Output ONLY raw JSON representing the node graph. You must ALWAYS use base_graph_body as your absolute starting point.",
+    "multi_page_instruction": "AI INSTRUCTION: To add a new page (e.g., /about), DUPLICATE the URLNode, LogicNode, and RenderNode from the base. Give them unique IDs. Connect them like this: csrf_1 -> url_about -> logic_about -> render_about -> css_main.",
+    "logic_keywords_guide": {
+        "FORM_DATA": "Use `req.get_form()` to get POST data. Example: `data = req.get_form()`; `name = data.get('name')`. NEVER use `req.form`.",
+        "URL_PARAMS": "If path is `/item/{item_id}`, use `req.get_param('item_id')` to extract it.",
+        "DATABASE_SQLITE": "Inside LogicNode: `import sqlite3`\n`conn = sqlite3.connect('database.db')`\n`cursor = conn.cursor()`\n`cursor.execute('CREATE TABLE IF NOT EXISTS users (name TEXT)')`\n`cursor.execute('INSERT INTO users (name) VALUES (?)', (name,))`\n`conn.commit()`\n`conn.close()`",
+        "CSRF_TOKEN": "ALWAYS return `'csrf_token': req.context.get('csrf_token', '')` in the logic dictionary. ALWAYS include `<input type='hidden' name='csrf_token' value='{{ csrf_token }}'>` inside `<form>` tags in HTML.",
+        "CSS_LINK": "ALWAYS include `<link rel='stylesheet' href='/static/style.css'>` in your RenderNode HTML."
+    },
+    "base_graph_body": {
+        "nodes": [
+            {
+                "id": "server_1",
+                "type": "ServerNode",
+                "x": -112,
+                "y": 293,
+                "config": {
+                    "ip": "127.0.0.1",
+                    "port": 8000
+                }
+            },
+            {
+                "id": "http_1",
+                "type": "HTTPRequestsNode",
+                "x": -111,
+                "y": 557,
+                "config": {}
+            },
+            {
+                "id": "csrf_1",
+                "type": "CSRFNode",
+                "x": -106,
+                "y": 669,
+                "config": {}
+            },
+            {
+                "id": "css_main",
+                "type": "CSSNode",
+                "x": 2454,
+                "y": 550,
+                "config": {
+                    "css_filename": "style.css",
+                    "css_code": "/* AI INSTRUCTION: Write all your CSS classes here. This is a single global CSS file for all pages. */\nbody {\n    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n    background-color: #f8f9fa;\n    color: #333;\n    margin: 0;\n    padding: 20px;\n}"
+                }
+            },
+            {
+                "id": "url_home",
+                "type": "URLNode",
+                "x": 470,
+                "y": -900,
+                "config": {
+                    "path": "/"
+                }
+            },
+            {
+                "id": "logic_home",
+                "type": "LogicNode",
+                "x": 1000,
+                "y": -1050,
+                "config": {
+                    "code": "# AI INSTRUCTION: Backend logic function.\n# 1. To get URL parameters (e.g. /path/{id}): req.get_param('id')\n# 2. To get POST form data: data = req.get_form(); my_val = data.get('field_name')\n# 3. DO NOT use req.form (it will crash).\n# 4. ALWAYS return a dictionary containing 'csrf_token'.\n# 5. Add any business logic (math, database, logic) inside this function.\nimport sqlite3\n\ndef home_logic(req):\n    data = req.get_form()\n    # Write logic based on user prompt here\n    \n    return {\n        'message': 'Welcome to WebNode!',\n        'csrf_token': req.context.get('csrf_token', '')\n    }"
+                }
+            },
+            {
+                "id": "render_home",
+                "type": "RenderNode",
+                "x": 1660,
+                "y": -900,
+                "config": {
+                    "filename": "home.html",
+                    "html_code": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <!-- AI INSTRUCTION: Link the global CSS file -->\n    <link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n    <!-- AI INSTRUCTION: Design the page here based on prompt. Use {{ variable_name }} to inject logic data. -->\n    <h1>{{ message }}</h1>\n    \n    <!-- AI INSTRUCTION: ANY form that submits data MUST include the hidden csrf_token field below! -->\n    <form method=\"POST\" action=\"/\">\n        <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token }}\">\n        <button type=\"submit\">Submit</button>\n    </form>\n</body>\n</html>"
+                }
+            }
+        ],
+        "connections": [
+            {
+                "source": "server_1",
+                "target": "http_1"
+            },
+            {
+                "source": "http_1",
+                "target": "csrf_1"
+            },
+            {
+                "source": "csrf_1",
+                "target": "url_home"
+            },
+            {
+                "source": "url_home",
+                "target": "logic_home"
+            },
+            {
+                "source": "logic_home",
+                "target": "render_home"
+            },
+            {
+                "source": "render_home",
+                "target": "css_main"
+            }
+        ]
+    }
+}

@@ -19,20 +19,15 @@ def find_package_data(package_dir):
 
 setup(
     name='webnode',
-    version='1.5.2',
+    version='1.5.3',
     packages=find_packages(),
     package_data={
         'webnode': find_package_data(os.path.join(os.path.dirname(__file__), 'webnode'))
     },
     include_package_data=True,
-    entry_points={
-        'console_scripts': [
-            'node-web=webnode.cli:main',
-        ],
-    },
     python_requires='>=3.8',
     author='LifelessA',
-    description='WebNode Framework — Visual node-based web framework for Python (v1.5.2)',
+    description='WebNode Framework — Visual node-based web framework for Python (v1.5.3)',
     long_description=open('README.md', encoding='utf-8').read() if os.path.exists('README.md') else '',
     long_description_content_type='text/markdown',
     url='https://github.com/LifelessA/webnode',
